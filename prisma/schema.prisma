@@ -1,0 +1,96 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// Mirrors public.profiles, a 1:1 extension of Supabase's auth.users
+// (auth schema is managed by Supabase Auth, not Prisma). A DB trigger
+// (see prisma/migrations/.../migration.sql) auto-creates this row on signup.
+model Profile {
+  id        String   @id @db.Uuid
+  fullName  String?  @map("full_name")
+  avatarUrl String?  @map("avatar_url")
+  role      String   @default("user")
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("profiles")
+}
+
+// Library directory queried by the Explore screen.
+model Library {
+  id            String   @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String?  @unique
+  description   String?
+  addressLine1  String?  @map("address_line_1")
+  addressLine2  String?  @map("address_line_2")
+  locality      String?
+  city          String?
+  state         String?
+  postalCode    String?  @map("postal_code")
+  websiteUrl    String?  @map("website_url")
+  category      String   @default("library")
+  status        String   @default("published")
+  isActive      Boolean  @default(true) @map("is_active")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("libraries")
+}
+
+// A user's booked study session. Written by the app when payment completes.
+model Booking {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  libraryId   String   @map("library_id")
+  libraryName String   @map("library_name")
+  bookingCode String   @unique @map("booking_code")
+  bookingDate String   @map("booking_date")
+  dateLabel   String   @map("date_label")
+  timeSlot    String   @map("time_slot")
+  timeLabel   String   @map("time_label")
+  seatType    String   @map("seat_type")
+  seatLabel   String   @map("seat_label")
+  totalAmount Int      @map("total_amount")
+  status      String   @default("upcoming")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("bookings")
+}
+
+// A customer's last-known location for discovery sorting and a "Home"
+// location chip. Written directly by lib/location.ts via supabase-js
+// (upsert), independent of any one booking.
+model UserLocation {
+  userId           String   @id @map("user_id") @db.Uuid
+  latitude         Decimal  @db.Decimal(9, 6)
+  longitude        Decimal  @db.Decimal(9, 6)
+  address          String?
+  source           String   @default("gps")
+  permissionStatus String   @default("granted") @map("permission_status")
+  createdAt        DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt        DateTime @default(now()) @map("updated_at") @db.Timestamptz(6)
+
+  @@map("user_locations")
+}
+
+// A user's current membership plan.
+model Membership {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @unique @map("user_id") @db.Uuid
+  plan      String
+  status    String   @default("active")
+  startedAt DateTime @default(now()) @map("started_at") @db.Timestamptz(6)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@map("memberships")
+}

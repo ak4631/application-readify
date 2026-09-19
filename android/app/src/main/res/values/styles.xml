@@ -1,0 +1,17 @@
+<resources>
+
+    <!-- Base application theme. -->
+    <!--
+        Fixed Light parent (not DayNight): this app has its own in-app
+        light/dark toggle (see ThemeContext), so the native window must not
+        also follow the OS system setting independently — that caused the
+        native background to go dark under system dark mode regardless of
+        the in-app theme.
+    -->
+    <style name="AppTheme" parent="Theme.AppCompat.Light.NoActionBar">
+        <!-- Customize your theme here. -->
+        <item name="android:editTextBackground">@drawable/rn_edit_text_material</item>
+        <item name="android:windowBackground">@android:color/white</item>
+    </style>
+
+</resources>
