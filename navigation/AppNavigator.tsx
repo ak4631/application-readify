@@ -16,7 +16,8 @@ import ExploreScreen from '../screens/ExploreScreen';
 import MapScreen from '../screens/MapScreen';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import BookingsScreen from '../screens/BookingsScreen';
-import MembershipScreen from '../screens/MembershipScreen';
+import SubscribeScreen from '../screens/SubscribeScreen';
+import MySubscriptionsScreen from '../screens/MySubscriptionsScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import LibraryDetailsScreen from '../screens/LibraryDetailsScreen';
@@ -82,7 +83,8 @@ export default function AppNavigator() {
               component={LocationPermissionScreen}
             />
             <Stack.Screen name="Bookings" component={BookingsScreen} />
-            <Stack.Screen name="Membership" component={MembershipScreen} />
+            <Stack.Screen name="Subscribe" component={SubscribeScreen} />
+            <Stack.Screen name="MySubscriptions" component={MySubscriptionsScreen} />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen
               name="Notifications"

@@ -31,7 +31,8 @@ export type RootStackParamList = {
   Map: { focusVendorId?: string } | undefined;
   LocationPermission: undefined;
   Bookings: undefined;
-  Membership: undefined;
+  Subscribe: { libraryId: string; libraryName: string };
+  MySubscriptions: undefined;
   Profile: undefined;
   Notifications: undefined;
   LibraryDetails: { libraryId: string; libraryName: string };

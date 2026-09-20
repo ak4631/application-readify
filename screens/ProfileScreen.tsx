@@ -19,7 +19,7 @@ import type { ThemeColors } from '../constants/colors';
 
 const MENU_ITEMS = [
   { icon: 'book-outline', label: 'My Bookings', route: 'Bookings' },
-  { icon: 'diamond-outline', label: 'My Membership', route: 'Membership' },
+  { icon: 'diamond-outline', label: 'My Subscriptions', route: 'MySubscriptions' },
   { icon: 'heart-outline', label: 'Saved Libraries', route: null },
   { icon: 'help-circle-outline', label: 'Help & Support', route: null },
 ] as const;

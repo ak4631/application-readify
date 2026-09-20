@@ -333,6 +333,15 @@ export default function LibraryDetailsScreen() {
           <Icon name="calendar-outline" size={18} color={colors.onPrimary} style={styles.bookButtonIcon} />
           <Text style={styles.bookButtonText}>Book a Session</Text>
         </TouchableOpacity>
+
+        <TouchableOpacity
+          style={styles.subscribeButton}
+          activeOpacity={0.8}
+          onPress={() => navigation.navigate('Subscribe', { libraryId, libraryName })}
+        >
+          <Icon name="ribbon-outline" size={18} color={colors.primary} style={styles.bookButtonIcon} />
+          <Text style={styles.subscribeButtonText}>View Plans & Subscribe</Text>
+        </TouchableOpacity>
       </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -457,4 +466,17 @@ const createStyles = (colors: ThemeColors) =>
     },
     bookButtonIcon: { marginRight: 8 },
     bookButtonText: { fontSize: 16, fontWeight: '700', color: colors.onPrimary },
+    subscribeButton: {
+      height: 52,
+      marginHorizontal: 20,
+      marginTop: 12,
+      borderRadius: Radius.md,
+      borderWidth: 1,
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
+      flexDirection: 'row',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    subscribeButtonText: { fontSize: 16, fontWeight: '700', color: colors.primary },
   });

@@ -387,10 +387,10 @@ export default function HomeScreen() {
         <TouchableOpacity
           style={styles.bottomNavItem}
           activeOpacity={0.75}
-          onPress={() => navigation.navigate('Membership')}
+          onPress={() => navigation.navigate('MySubscriptions')}
         >
           <Icon name="diamond-outline" size={19} color={colors.onPrimary} style={styles.bottomNavIcon} />
-          <Text style={styles.bottomNavText}>Membership</Text>
+          <Text style={styles.bottomNavText}>Subscriptions</Text>
         </TouchableOpacity>
 
         <TouchableOpacity
