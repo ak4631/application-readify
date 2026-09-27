@@ -109,6 +109,24 @@ export default function MySubscriptionsScreen() {
                 </Text>
               </View>
 
+              {subscription.slot_start ? (
+                <View style={styles.detailRow}>
+                  <Icon name="body-outline" size={13} color={colors.subText} />
+                  <Text style={styles.detailText}>
+                    Daily from {subscription.slot_start}
+                    {subscription.slot_hours ? ` for ${subscription.slot_hours}h` : ''}
+                  </Text>
+                </View>
+              ) : null}
+              {subscription.seat_number ? (
+                <View style={styles.detailRow}>
+                  <Icon name="pin-outline" size={13} color={colors.primary} />
+                  <Text style={[styles.detailText, styles.seatText]}>
+                    Seat {subscription.seat_number}
+                  </Text>
+                </View>
+              ) : null}
+
               <View style={styles.footerRow}>
                 <Text style={styles.amount}>₹{subscription.total_amount}</Text>
               </View>
@@ -157,6 +175,7 @@ const createStyles = (colors: ThemeColors) =>
     planName: { marginTop: 4, fontSize: 14, fontWeight: '600', color: colors.primary },
     detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
     detailText: { fontSize: 13, color: colors.subText },
+    seatText: { fontWeight: '700', color: colors.text },
     footerRow: {
       flexDirection: 'row',
       alignItems: 'center',

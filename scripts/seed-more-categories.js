@@ -27,7 +27,7 @@ const entries = [
   {
     name: 'The Brew & Books Cafe',
     slug: 'the-brew-and-books-cafe',
-    category: 'study_cafe',
+    category: 'co_working_space',
     description: 'Coffee-shop vibe with fast Wi-Fi and unlimited refills for long sessions.',
     address_line_1: '56 Hauz Khas Village',
     locality: 'Hauz Khas',
@@ -36,9 +36,9 @@ const entries = [
     postal_code: '110016',
   },
   {
-    name: 'Pageturner Study Cafe',
-    slug: 'pageturner-study-cafe',
-    category: 'study_cafe',
+    name: 'Pageturner Co-working Space',
+    slug: 'pageturner-coworking-space',
+    category: 'co_working_space',
     description: 'Cozy cafe seating with charging points at every table.',
     address_line_1: '14 Satya Niketan',
     locality: 'Satya Niketan',
@@ -94,7 +94,7 @@ async function main() {
         ],
       );
     }
-    console.log(`Seeded ${entries.length} entries across reading rooms / study cafes / exam hubs.`);
+    console.log(`Seeded ${entries.length} entries across reading rooms / co-working spaces / exam hubs.`);
   } finally {
     await client.end();
   }

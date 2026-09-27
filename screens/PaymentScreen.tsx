@@ -37,6 +37,7 @@ export default function PaymentScreen() {
     selectedDateLabel,
     selectedTime,
     selectedTimeLabel,
+    startTime,
     planId,
     planName,
     planPrice,
@@ -63,6 +64,7 @@ export default function PaymentScreen() {
         dateLabel: selectedDateLabel,
         timeSlot: selectedTime,
         timeLabel: selectedTimeLabel,
+        startTime,
       });
 
       navigation.navigate('BookingConfirmation', {
@@ -72,6 +74,7 @@ export default function PaymentScreen() {
         selectedTimeLabel,
         planName,
         totalAmount,
+        seatNumber: booking.seat_number,
       });
     } catch (error: any) {
       Alert.alert('Payment failed', error.message ?? 'Could not save your booking. Please try again.');

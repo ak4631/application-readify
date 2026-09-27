@@ -15,6 +15,8 @@ export type CreateBookingInput = {
   dateLabel: string;
   timeSlot: string;
   timeLabel: string;
+  // Seat-based libraries: the chosen start time ("HH:MM", library-local). The server assigns the seat.
+  startTime?: string;
 };
 
 export type Booking = {
@@ -24,6 +26,9 @@ export type Booking = {
   date_label: string;
   time_label: string;
   seat_label: string;
+  // The seat the server assigned (library vendors only) -- shown so the
+  // customer knows where to sit, never something they picked themselves.
+  seat_number: string | null;
   total_amount: number;
   status: 'upcoming' | 'completed' | 'cancelled' | 'pending' | 'confirmed' | 'expired';
   created_at: string;
@@ -37,7 +42,7 @@ export async function fetchBookings(_userId: string): Promise<Booking[]> {
   const { data, error } = await supabase
     .from('customer_bookings')
     .select(
-      'id, booking_code, booking_date, date_label, time_label, seat_label, total_amount, status, created_at, library_name',
+      'id, booking_code, booking_date, date_label, time_label, seat_label, seat_number, total_amount, status, created_at, library_name',
     )
     .order('created_at', { ascending: false });
 
@@ -70,6 +75,7 @@ export async function createBooking(input: CreateBookingInput) {
       p_date_label: input.dateLabel,
       p_time_slot: input.timeSlot,
       p_time_label: input.timeLabel,
+      p_start_time: input.startTime ?? null,
     })
     .single();
 
@@ -77,5 +83,5 @@ export async function createBooking(input: CreateBookingInput) {
     throw error;
   }
 
-  return data as { id: string; booking_code: string };
+  return data as { id: string; booking_code: string; seat_number: string | null };
 }

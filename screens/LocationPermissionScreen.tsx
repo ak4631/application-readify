@@ -116,7 +116,7 @@ export default function LocationPermissionScreen() {
 
         <Text style={styles.title}>Find spaces near you</Text>
         <Text style={styles.subtitle}>
-          Readify uses your location to show nearby libraries, gyms, exam hubs and study cafes,
+          Readify uses your location to show nearby libraries, gyms, exam hubs and co-working spaces,
           along with distance from where you are.
         </Text>
 

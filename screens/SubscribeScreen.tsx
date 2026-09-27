@@ -15,6 +15,13 @@ import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
 import { fetchPlans, formatPlanDuration, type Plan } from '../lib/plans';
 import {
+  fetchSlotOptions,
+  fetchSubscriptionOptions,
+  toLocalDateId,
+  type SlotOption,
+} from '../lib/libraryAvailability';
+import SlotPicker from '../components/SlotPicker';
+import {
   cancelSubscription,
   createSubscription,
   fetchActiveSubscription,
@@ -38,15 +45,27 @@ export default function SubscribeScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [subscribingPlanId, setSubscribingPlanId] = useState<string | null>(null);
   const [isCancelling, setIsCancelling] = useState(false);
+  // Libraries with individually-tracked seats: the subscriber picks a daily
+  // time slot and the server assigns a seat that is free for the whole plan.
+  // Customers only ever see counts, never seat numbers.
+  const [isSeatVendor, setIsSeatVendor] = useState(false);
+  const [totalSeats, setTotalSeats] = useState(0);
+  const [pickerPlanId, setPickerPlanId] = useState<string | null>(null);
+  const [slotOptions, setSlotOptions] = useState<SlotOption[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [selectedStart, setSelectedStart] = useState<string | null>(null);
 
   const loadData = useCallback(async () => {
     try {
-      const [plansData, subscription] = await Promise.all([
+      const [plansData, subscription, seatProbe] = await Promise.all([
         fetchPlans(libraryId),
         fetchActiveSubscription(libraryId),
+        fetchSlotOptions(libraryId, toLocalDateId(new Date()), null).catch(() => ({ totalSeats: 0, options: [] })),
       ]);
       setPlans(plansData.filter(plan => SUBSCRIBABLE_UNITS.includes(plan.duration_unit)));
       setActiveSubscription(subscription);
+      setIsSeatVendor(seatProbe.totalSeats > 0);
+      setTotalSeats(seatProbe.totalSeats);
     } catch (error: any) {
       console.error('Failed to load plans:', error.message);
     } finally {
@@ -60,12 +79,44 @@ export default function SubscribeScreen() {
     }, [loadData]),
   );
 
+  const openTimePicker = async (plan: Plan) => {
+    setPickerPlanId(plan.id);
+    setSelectedStart(null);
+    setSlotOptions([]);
+    setIsLoadingOptions(true);
+    try {
+      const data = await fetchSubscriptionOptions(libraryId, plan.id);
+      setSlotOptions(data.options);
+      setTotalSeats(data.totalSeats);
+    } catch (error: any) {
+      Alert.alert('Could not load availability', error.message);
+    } finally {
+      setIsLoadingOptions(false);
+    }
+  };
+
   const handleSubscribe = async (plan: Plan) => {
+    if (isSeatVendor && (pickerPlanId !== plan.id || !selectedStart)) {
+      // First tap opens the time picker; the confirm tap subscribes.
+      await openTimePicker(plan);
+      return;
+    }
+
     setSubscribingPlanId(plan.id);
     try {
-      await createSubscription(libraryId, plan.id);
+      const subscription = await createSubscription(
+        libraryId,
+        plan.id,
+        isSeatVendor ? selectedStart ?? undefined : undefined,
+      );
+      setPickerPlanId(null);
       await loadData();
-      Alert.alert('Subscribed', `Your ${plan.name} plan is now active.`);
+      Alert.alert(
+        'Subscribed',
+        subscription.seat_number
+          ? `Your ${plan.name} plan is now active. Your seat is ${subscription.seat_number}.`
+          : `Your ${plan.name} plan is now active.`,
+      );
     } catch (error: any) {
       Alert.alert('Could not subscribe', error.message);
     } finally {
@@ -168,6 +219,19 @@ export default function SubscribeScreen() {
                     <Text style={styles.planDescription}>{plan.description}</Text>
                   )}
 
+                  {pickerPlanId === plan.id && isSeatVendor && (
+                    <View style={styles.pickerWrap}>
+                      <SlotPicker
+                        options={slotOptions}
+                        totalSeats={totalSeats}
+                        loading={isLoadingOptions}
+                        selectedStart={selectedStart}
+                        onSelect={setSelectedStart}
+                        countSuffix={`for the full ${formatPlanDuration(plan)}`}
+                      />
+                    </View>
+                  )}
+
                   <TouchableOpacity
                     style={[styles.selectButton, disableButton && styles.selectButtonDisabled]}
                     activeOpacity={0.8}
@@ -182,6 +246,10 @@ export default function SubscribeScreen() {
                           ? 'Current Plan'
                           : activeSubscription
                           ? 'Cancel current plan first'
+                          : isSeatVendor && pickerPlanId !== plan.id
+                          ? 'Choose daily time'
+                          : isSeatVendor && !selectedStart
+                          ? 'Select a time above'
                           : `Subscribe for ${formatPlanDuration(plan)}`}
                       </Text>
                     )}
@@ -227,6 +295,7 @@ const createStyles = (colors: ThemeColors) =>
     priceRow: { flexDirection: 'row', alignItems: 'baseline', marginTop: 10 },
     price: { fontSize: 28, fontWeight: '700', color: colors.primary },
     duration: { marginLeft: 4, fontSize: 14, color: colors.subText },
+    pickerWrap: { marginTop: 14 },
     planDescription: { marginTop: 8, marginBottom: 4, fontSize: 14, lineHeight: 21, color: colors.subText },
     selectButton: { height: 48, marginTop: 20, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
     selectButtonDisabled: { backgroundColor: colors.subText },

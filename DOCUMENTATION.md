@@ -479,7 +479,7 @@ submitted for Readify India approval") — not implemented.
    libraries, profile edits are all in-memory or absent.
 6. **Map is user-location only** — no library pins; `libraries` has no lat/lng
    or category columns.
-7. **Explore category filter** — "Reading Rooms"/"Study Cafes"/"Exam Hubs" are
+7. **Explore category filter** — "Reading Rooms"/"Co-working Spaces"/"Exam Hubs" are
    cosmetic ("Coming soon"); the `All` vs `Libraries` filter is effectively the
    same set.
 8. **Partner portal** — beyond login, pages are UI previews; several sidebar

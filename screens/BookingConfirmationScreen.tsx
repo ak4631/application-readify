@@ -27,6 +27,7 @@ export default function BookingConfirmationScreen() {
     selectedTimeLabel,
     planName,
     totalAmount,
+    seatNumber,
   } = route.params;
 
   return (
@@ -39,6 +40,16 @@ export default function BookingConfirmationScreen() {
           <Text style={styles.title}>Booking Confirmed</Text>
           <Text style={styles.subtitle}>Your study session has been booked successfully.</Text>
         </View>
+
+        {seatNumber ? (
+          <View style={styles.seatBanner}>
+            <Icon name="body" size={20} color={colors.primary} />
+            <View style={styles.seatBannerText}>
+              <Text style={styles.seatBannerLabel}>Your seat</Text>
+              <Text style={styles.seatBannerValue}>{seatNumber}</Text>
+            </View>
+          </View>
+        ) : null}
 
         <View style={styles.bookingCard}>
           <Text style={styles.cardLabel}>BOOKING DETAILS</Text>
@@ -117,7 +128,19 @@ const createStyles = (colors: ThemeColors) =>
     successIcon: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.successLight, justifyContent: 'center', alignItems: 'center' },
     title: { marginTop: 18, fontSize: 25, lineHeight: 31, fontWeight: '800', color: colors.text, textAlign: 'center' },
     subtitle: { marginTop: 8, fontSize: 13, lineHeight: 20, color: colors.subText, textAlign: 'center' },
-    bookingCard: { marginTop: 28, padding: 16, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    seatBanner: {
+      marginTop: 18,
+      padding: 14,
+      borderRadius: 16,
+      backgroundColor: colors.primaryLight,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    seatBannerText: { flex: 1 },
+    seatBannerLabel: { fontSize: 11, color: colors.subText },
+    seatBannerValue: { marginTop: 2, fontSize: 18, fontWeight: '800', color: colors.text },
+    bookingCard: { marginTop: 14, padding: 16, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
     cardLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.8, color: colors.primary },
     libraryName: { marginTop: 9, fontSize: 18, fontWeight: '700', color: colors.text },
     divider: { height: 1, marginVertical: 16, backgroundColor: colors.border },

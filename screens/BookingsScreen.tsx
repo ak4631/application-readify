@@ -157,6 +157,14 @@ export default function BookingsScreen() {
                 <Icon name="body-outline" size={13} color={colors.subText} />
                 <Text style={styles.bookingDetailText}>{booking.seat_label}</Text>
               </View>
+              {booking.seat_number ? (
+                <View style={styles.bookingDetailRow}>
+                  <Icon name="pin-outline" size={13} color={colors.primary} />
+                  <Text style={[styles.bookingDetailText, styles.bookingSeatText]}>
+                    Seat {booking.seat_number}
+                  </Text>
+                </View>
+              ) : null}
 
               <View style={styles.bookingFooterRow}>
                 <Text style={styles.bookingCode}>{booking.booking_code}</Text>
@@ -213,6 +221,7 @@ const createStyles = (colors: ThemeColors) =>
     bookingAmount: { fontSize: 14, fontWeight: '800', color: colors.primary },
     bookingDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
     bookingDetailText: { fontSize: 13, color: colors.subText },
+    bookingSeatText: { fontWeight: '700', color: colors.text },
     bookingFooterRow: {
       flexDirection: 'row',
       alignItems: 'center',

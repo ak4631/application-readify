@@ -16,6 +16,14 @@ import { useStyles } from '../hooks/useStyles';
 import { getLibraryImage } from '../constants/dummyImages';
 import { fetchPlans, formatPlanDuration, type Plan } from '../lib/plans';
 import { fetchSlotAvailability, type SlotAvailability } from '../lib/slots';
+import {
+  fetchSlotOptions,
+  formatTime12,
+  toLocalDateId,
+  visitPlanHours,
+  type SlotOption,
+} from '../lib/libraryAvailability';
+import SlotPicker from '../components/SlotPicker';
 import type { ThemeColors } from '../constants/colors';
 
 type BookingDate = {
@@ -45,7 +53,7 @@ function getBookingDates(): BookingDate[] {
     date.setDate(now.getDate() + index);
 
     dates.push({
-      id: date.toISOString().split('T')[0],
+      id: toLocalDateId(date),
       day: date.toLocaleDateString('en-US', { weekday: 'short' }),
       date: String(date.getDate()).padStart(2, '0'),
       month: date.toLocaleDateString('en-US', { month: 'short' }),
@@ -74,6 +82,14 @@ export default function BookingScreen() {
   const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
   const [isLoadingPlans, setIsLoadingPlans] = useState(true);
   const [slotAvailability, setSlotAvailability] = useState<SlotAvailability[]>([]);
+  // Libraries with individually-tracked seats book a time and the server
+  // assigns the seat (customers only see counts); everything else keeps the
+  // fixed time-bucket flow.
+  const [isSeatVendor, setIsSeatVendor] = useState(false);
+  const [totalSeats, setTotalSeats] = useState(0);
+  const [slotOptions, setSlotOptions] = useState<SlotOption[]>([]);
+  const [isLoadingOptions, setIsLoadingOptions] = useState(false);
+  const [selectedStart, setSelectedStart] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -125,6 +141,28 @@ export default function BookingScreen() {
     };
   }, [libraryId, selectedDate]);
 
+  // Does this library track individual seats? (Date-independent probe.)
+  useEffect(() => {
+    let isMounted = true;
+
+    fetchSlotOptions(libraryId, toLocalDateId(new Date()), null)
+      .then(data => {
+        if (isMounted) {
+          setIsSeatVendor(data.totalSeats > 0);
+          setTotalSeats(data.totalSeats);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setIsSeatVendor(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [libraryId]);
+
   useEffect(() => {
     if (slotAvailability.length === 0) {
       return;
@@ -141,13 +179,57 @@ export default function BookingScreen() {
 
   const selectedDateData = dates.find(date => date.id === selectedDate);
   const selectedTimeSlot = timeSlots.find(slot => slot.id === selectedTime);
-  const selectedPlan = plans.find(plan => plan.id === selectedPlanId);
+  const isSeatMode = isSeatVendor;
+  // Seat mode books a single visit, so multi-day/month plans (subscriptions) are hidden.
+  const visiblePlans = isSeatMode ? plans.filter(plan => visitPlanHours(plan) != null) : plans;
+  const selectedPlan = visiblePlans.find(plan => plan.id === selectedPlanId) ?? visiblePlans[0];
+  const visitHours = selectedPlan && isSeatMode ? visitPlanHours(selectedPlan)?.hours ?? null : null;
+  const planKey = selectedPlan?.id;
+
+  // Seats free per start time for this date + plan length.
+  useEffect(() => {
+    if (!isSeatMode || !planKey || !selectedDate) {
+      return;
+    }
+    let isMounted = true;
+    setIsLoadingOptions(true);
+    setSelectedStart(null);
+
+    fetchSlotOptions(libraryId, selectedDate, visitHours)
+      .then(data => {
+        if (isMounted) {
+          setSlotOptions(data.options);
+          setTotalSeats(data.totalSeats);
+        }
+      })
+      .catch(() => {
+        if (isMounted) {
+          setSlotOptions([]);
+        }
+      })
+      .finally(() => {
+        if (isMounted) {
+          setIsLoadingOptions(false);
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [isSeatMode, libraryId, selectedDate, planKey, visitHours]);
+
+  const selectedOption = slotOptions.find(option => option.start_time === selectedStart);
+  const seatTimeLabel = selectedOption
+    ? `${formatTime12(selectedOption.start_time)} - ${formatTime12(selectedOption.end_time)}`
+    : '';
+  const canContinue = !!selectedPlan && (!isSeatMode || (!!selectedOption && selectedOption.seats_available > 0));
+  const planStep = isSeatMode ? 2 : 3;
 
   const planPrice = selectedPlan?.price ?? 0;
   const totalAmount = planPrice + TAXES_AND_FEES;
 
   const handleContinueToPayment = () => {
-    if (!selectedPlan) {
+    if (!selectedPlan || !canContinue) {
       return;
     }
 
@@ -156,8 +238,9 @@ export default function BookingScreen() {
       libraryName,
       selectedDate,
       selectedDateLabel: selectedDateData?.fullDate ?? '',
-      selectedTime,
-      selectedTimeLabel: selectedTimeSlot?.time ?? '',
+      selectedTime: isSeatMode ? 'custom' : selectedTime,
+      selectedTimeLabel: isSeatMode ? seatTimeLabel : selectedTimeSlot?.time ?? '',
+      startTime: isSeatMode ? selectedStart : undefined,
       planId: selectedPlan.id,
       planName: selectedPlan.name,
       planPrice,
@@ -224,6 +307,7 @@ export default function BookingScreen() {
           </ScrollView>
         </View>
 
+        {!isSeatMode && (
         <View style={styles.stepSection}>
           <View style={styles.stepHeader}>
             <View style={styles.stepNumber}>
@@ -269,21 +353,22 @@ export default function BookingScreen() {
             })}
           </View>
         </View>
+        )}
 
         <View style={styles.stepSection}>
           <View style={styles.stepHeader}>
             <View style={styles.stepNumber}>
-              <Text style={styles.stepNumberText}>3</Text>
+              <Text style={styles.stepNumberText}>{planStep}</Text>
             </View>
             <Text style={styles.stepTitle}>Select Plan</Text>
           </View>
 
           {isLoadingPlans ? (
             <ActivityIndicator color={colors.primary} style={styles.plansLoader} />
-          ) : plans.length > 0 ? (
+          ) : visiblePlans.length > 0 ? (
             <View style={styles.planList}>
-              {plans.map(plan => {
-                const isSelected = selectedPlanId === plan.id;
+              {visiblePlans.map(plan => {
+                const isSelected = selectedPlan?.id === plan.id;
                 return (
                   <TouchableOpacity
                     key={plan.id}
@@ -315,6 +400,24 @@ export default function BookingScreen() {
           )}
         </View>
 
+        {isSeatMode && selectedPlan && (
+          <View style={styles.stepSection}>
+            <View style={styles.stepHeader}>
+              <View style={styles.stepNumber}>
+                <Text style={styles.stepNumberText}>3</Text>
+              </View>
+              <Text style={styles.stepTitle}>Select Time</Text>
+            </View>
+            <SlotPicker
+              options={slotOptions}
+              totalSeats={totalSeats}
+              loading={isLoadingOptions}
+              selectedStart={selectedStart}
+              onSelect={setSelectedStart}
+            />
+          </View>
+        )}
+
         {selectedPlan && (
           <View style={styles.stepSection}>
             <View style={styles.stepHeader}>
@@ -327,7 +430,11 @@ export default function BookingScreen() {
             <View style={styles.summaryCard}>
               <SummaryRow styles={styles} label="Library" value={libraryName} />
               <SummaryRow styles={styles} label="Date" value={selectedDateData?.fullDate ?? ''} />
-              <SummaryRow styles={styles} label="Time" value={selectedTimeSlot?.time ?? ''} />
+              <SummaryRow
+                styles={styles}
+                label="Time"
+                value={isSeatMode ? seatTimeLabel || 'Not selected' : selectedTimeSlot?.time ?? ''}
+              />
               <SummaryRow styles={styles} label="Plan" value={`${selectedPlan.name} (${formatPlanDuration(selectedPlan)})`} />
               <View style={styles.summaryDivider} />
               <SummaryRow styles={styles} label="Plan Price" value={`₹${planPrice}.00`} />
@@ -349,10 +456,10 @@ export default function BookingScreen() {
           </View>
 
           <TouchableOpacity
-            style={[styles.paymentButton, !selectedPlan && styles.paymentButtonDisabled]}
+            style={[styles.paymentButton, !canContinue && styles.paymentButtonDisabled]}
             activeOpacity={0.8}
             onPress={handleContinueToPayment}
-            disabled={!selectedPlan}
+            disabled={!canContinue}
           >
             <Text style={styles.paymentButtonText}>Continue to Payment</Text>
             {selectedPlan && <Text style={styles.paymentAmount}>₹{totalAmount}.00</Text>}

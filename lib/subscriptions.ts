@@ -11,6 +11,11 @@ export type Subscription = {
   total_amount: number;
   status: 'active' | 'expired' | 'cancelled';
   created_at: string;
+  slot_start?: string | null;
+  slot_hours?: number | null;
+  // The seat the server assigned (library vendors only) -- shown so the
+  // customer knows where to sit, never something they picked themselves.
+  seat_number?: string | null;
 };
 
 // Reads/writes go through public.customer_subscriptions / the RPCs below
@@ -21,7 +26,7 @@ export async function fetchSubscriptions(): Promise<Subscription[]> {
   const { data, error } = await supabase
     .from('customer_subscriptions')
     .select(
-      'id, vendor_id, library_name, plan_id, plan_name, start_date, end_date, total_amount, status, created_at',
+      'id, vendor_id, library_name, plan_id, plan_name, start_date, end_date, total_amount, status, created_at, slot_start, slot_hours, seat_number',
     )
     .order('created_at', { ascending: false });
 
@@ -40,16 +45,24 @@ export async function fetchActiveSubscription(vendorId: string): Promise<Subscri
   return subscriptions.find(s => s.vendor_id === vendorId && s.status === 'active') ?? null;
 }
 
-export async function createSubscription(vendorId: string, planId: string) {
+export async function createSubscription(
+  vendorId: string,
+  planId: string,
+  startTime?: string,
+) {
   const { data, error } = await supabase
-    .rpc('create_customer_subscription', { p_vendor_id: vendorId, p_plan_id: planId })
+    .rpc('create_customer_subscription', {
+      p_vendor_id: vendorId,
+      p_plan_id: planId,
+      p_start_time: startTime ?? null,
+    })
     .single();
 
   if (error) {
     throw error;
   }
 
-  return data as { id: string; start_date: string; end_date: string };
+  return data as { id: string; start_date: string; end_date: string; seat_number: string | null };
 }
 
 export async function cancelSubscription(subscriptionId: string) {
