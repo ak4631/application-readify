@@ -6,7 +6,6 @@ import {
   Image,
   KeyboardAvoidingView,
   Platform,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -14,6 +13,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView, useSafeAreaInsets } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -72,6 +72,7 @@ export default function LibraryDetailsScreen() {
   const route = useRoute<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
+  const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { libraryId, libraryName } = route.params;
 
@@ -186,6 +187,18 @@ export default function LibraryDetailsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* Floating over the hero image, so it needs the inset applied
+          explicitly -- a position:'absolute' child does not reliably pick up
+          SafeAreaView's own top padding (unlike normal-flow header rows
+          elsewhere in the app), which is what caused this to sit under the
+          status bar before. */}
+      <TouchableOpacity
+        style={[styles.floatingBackButton, { top: insets.top + 12 }]}
+        activeOpacity={0.8}
+        onPress={() => navigation.goBack()}
+      >
+        <Icon name="chevron-back" size={20} color="#FFFFFF" />
+      </TouchableOpacity>
       <KeyboardAvoidingView
         style={styles.container}
         behavior={Platform.OS === 'ios' ? 'padding' : undefined}
@@ -354,6 +367,18 @@ const createStyles = (colors: ThemeColors) =>
     content: { flex: 1 },
     contentContainer: { paddingBottom: 32 },
     imagePlaceholder: { height: 220, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    floatingBackButton: {
+      position: 'absolute',
+      top: 12,
+      left: 16,
+      zIndex: 10,
+      width: 36,
+      height: 36,
+      borderRadius: 18,
+      backgroundColor: 'rgba(0,0,0,0.35)',
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     headerSection: { paddingHorizontal: 20, paddingTop: 20 },
     title: { fontSize: 28, lineHeight: 34, fontWeight: '700', color: colors.text },
     ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 5, marginTop: 8 },

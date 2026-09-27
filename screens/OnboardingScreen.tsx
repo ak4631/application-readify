@@ -1,6 +1,5 @@
 import React, { useRef, useState } from 'react';
 import {
-  SafeAreaView,
   View,
   Text,
   Image,
@@ -11,6 +10,7 @@ import {
   NativeSyntheticEvent,
   NativeScrollEvent,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useStyles } from '../hooks/useStyles';
 import type { ThemeColors } from '../constants/colors';

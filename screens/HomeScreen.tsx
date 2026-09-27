@@ -3,15 +3,14 @@ import {
   Animated,
   Easing,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   StatusBar,
   Text,
   TouchableOpacity,
   View,
-  Platform,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -307,7 +306,6 @@ export default function HomeScreen() {
                         : [item.locality, item.city].filter(Boolean).join(', ') || 'Delhi NCR'}
                     </Text>
                     <View style={styles.libraryBottomRow}>
-                      <Text style={styles.libraryPrice}>₹40/day</Text>
                       <View style={styles.bookButton}>
                         <Text style={styles.bookButtonText}>View</Text>
                       </View>
@@ -414,7 +412,10 @@ const createStyles = (colors: ThemeColors) =>
     headerSection: {
       backgroundColor: colors.primary,
       paddingHorizontal: 16,
-      paddingTop: Platform.OS === 'android' ? (StatusBar.currentHeight ?? 24) + 4 : 14,
+      // The safe-area-context SafeAreaView already reserves space for the
+      // status bar (including Android's forced edge-to-edge display), so
+      // this only needs to be the same breathing room on every platform.
+      paddingTop: 14,
       paddingBottom: 22,
       borderBottomLeftRadius: Radius.xl,
       borderBottomRightRadius: Radius.xl,
@@ -561,10 +562,9 @@ const createStyles = (colors: ThemeColors) =>
     libraryBottomRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
+      justifyContent: 'flex-end',
       marginTop: 12,
     },
-    libraryPrice: { fontSize: 14, fontWeight: '800', color: colors.text },
     bookButton: {
       paddingHorizontal: 10,
       paddingVertical: 7,

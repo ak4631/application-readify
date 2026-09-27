@@ -1,13 +1,13 @@
 import React from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import {
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import QRCode from 'react-native-qrcode-svg';
 import { useTheme } from '../context/ThemeContext';

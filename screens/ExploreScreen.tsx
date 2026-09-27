@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
@@ -10,8 +9,10 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
 import { Radius } from '../constants/radius';
@@ -256,6 +257,7 @@ export default function ExploreScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Explore" />
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}

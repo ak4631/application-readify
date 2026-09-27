@@ -3,13 +3,14 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '../components/ScreenHeader';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
@@ -104,6 +105,7 @@ export default function BookingsScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="My Bookings" />
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}

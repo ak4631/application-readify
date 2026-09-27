@@ -1,16 +1,16 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
   Image,
-  SafeAreaView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -41,19 +41,25 @@ export default function MapScreen() {
   const [isLoading, setIsLoading] = useState(true);
   const [viewMode, setViewMode] = useState<'map' | 'list'>('map');
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    fetchSavedLocation(session.user.id)
-      .then(saved => {
-        if (saved) {
-          setCenter([saved.longitude, saved.latitude]);
-          setHasKnownLocation(true);
-        }
-      })
-      .catch(() => {});
-  }, [session]);
+  // useFocusEffect (not a plain effect) so returning from LocationPermission
+  // after setting/changing location refreshes this screen immediately,
+  // instead of only ever reading the location that existed when Map first
+  // mounted.
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) {
+        return;
+      }
+      fetchSavedLocation(session.user.id)
+        .then(saved => {
+          if (saved) {
+            setCenter([saved.longitude, saved.latitude]);
+            setHasKnownLocation(true);
+          }
+        })
+        .catch(() => {});
+    }, [session]),
+  );
 
   useEffect(() => {
     let isMounted = true;
@@ -106,13 +112,22 @@ export default function MapScreen() {
           <Icon name="chevron-back" size={20} color={colors.text} />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>Nearby Spaces</Text>
-        <TouchableOpacity
-          style={styles.toggleButton}
-          activeOpacity={0.7}
-          onPress={() => setViewMode(mode => (mode === 'map' ? 'list' : 'map'))}
-        >
-          <Icon name={viewMode === 'map' ? 'list-outline' : 'map-outline'} size={18} color={colors.text} />
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            activeOpacity={0.7}
+            onPress={() => navigation.navigate('LocationPermission', { returnTo: 'Map' })}
+          >
+            <Icon name="location-outline" size={18} color={colors.text} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            activeOpacity={0.7}
+            onPress={() => setViewMode(mode => (mode === 'map' ? 'list' : 'map'))}
+          >
+            <Icon name={viewMode === 'map' ? 'list-outline' : 'map-outline'} size={18} color={colors.text} />
+          </TouchableOpacity>
+        </View>
       </View>
 
       <View style={styles.categoryRow}>
@@ -143,12 +158,17 @@ export default function MapScreen() {
       </View>
 
       {!hasKnownLocation && (
-        <View style={styles.notice}>
+        <TouchableOpacity
+          style={styles.notice}
+          activeOpacity={0.7}
+          onPress={() => navigation.navigate('LocationPermission', { returnTo: 'Map' })}
+        >
           <Icon name="information-circle-outline" size={14} color={colors.subText} />
           <Text style={styles.noticeText}>
-            Showing Delhi NCR by default. Set your location from Home for results near you.
+            Showing Delhi NCR by default. Tap here to set your location for results near you.
           </Text>
-        </View>
+          <Icon name="chevron-forward" size={14} color={colors.subText} />
+        </TouchableOpacity>
       )}
 
       {viewMode === 'map' ? (
@@ -240,6 +260,7 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
     },
     headerTitle: { fontSize: 16, fontWeight: '700', color: colors.text },
+    headerActions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     toggleButton: {
       width: 36,
       height: 36,

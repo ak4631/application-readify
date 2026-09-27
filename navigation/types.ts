@@ -29,7 +29,10 @@ export type RootStackParamList = {
   Home: undefined;
   Explore: { initialCategory?: string } | undefined;
   Map: { focusVendorId?: string } | undefined;
-  LocationPermission: undefined;
+  // returnTo: when set, "done" (or skip) goes back to that screen instead of
+  // replacing the stack with Home -- used when this is opened to change an
+  // already-set location (e.g. from Map), not during first-run onboarding.
+  LocationPermission: { returnTo?: string } | undefined;
   Bookings: undefined;
   Subscribe: { libraryId: string; libraryName: string };
   MySubscriptions: undefined;

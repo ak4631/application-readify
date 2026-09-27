@@ -1,14 +1,15 @@
 import React, { useState } from 'react';
 import {
   ActivityIndicator,
-  SafeAreaView,
   StyleSheet,
   Text,
   TextInput,
   TouchableOpacity,
   View,
 } from 'react-native';
-import { useNavigation } from '@react-navigation/native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import ScreenHeader from '../components/ScreenHeader';
+import { useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStyles } from '../hooks/useStyles';
@@ -22,9 +23,16 @@ export const LOCATION_PROMPT_SHOWN_KEY = 'readify:locationPromptShown';
 
 export default function LocationPermissionScreen() {
   const navigation = useNavigation<any>();
+  const route = useRoute<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
   const { session } = useAuth();
+  // Reached either from onboarding (Home navigates here automatically, and
+  // "done" should replace Home so this screen doesn't linger in the back
+  // stack) or from an in-app "change location" action (e.g. Map's header
+  // button, with returnTo set) -- in which case "done" should just return
+  // to that screen, now showing the freshly saved location.
+  const returnTo = route.params?.returnTo as string | undefined;
 
   const [isLocating, setIsLocating] = useState(false);
   const [showManualSearch, setShowManualSearch] = useState(false);
@@ -35,7 +43,11 @@ export default function LocationPermissionScreen() {
 
   const finish = async () => {
     await AsyncStorage.setItem(LOCATION_PROMPT_SHOWN_KEY, 'true');
-    navigation.replace('Home');
+    if (returnTo && navigation.canGoBack()) {
+      navigation.goBack();
+    } else {
+      navigation.replace('Home');
+    }
   };
 
   const handleUseCurrentLocation = async () => {
@@ -109,6 +121,7 @@ export default function LocationPermissionScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <ScreenHeader title="Location" />
       <View style={styles.content}>
         <View style={styles.iconCircle}>
           <Icon name="location" size={36} color={colors.onPrimary} />

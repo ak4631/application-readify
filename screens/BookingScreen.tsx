@@ -3,13 +3,13 @@ import { useNavigation, useRoute } from '@react-navigation/native';
 import {
   ActivityIndicator,
   Image,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';

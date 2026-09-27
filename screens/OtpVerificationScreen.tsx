@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  SafeAreaView,
   View,
   Text,
   Image,
@@ -11,6 +10,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';

@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
-  SafeAreaView,
   View,
   Text,
   Image,
@@ -11,6 +10,8 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import Icon from 'react-native-vector-icons/Ionicons';
 import { supabase } from '../lib/supabase';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -57,6 +58,13 @@ export default function LoginScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      <TouchableOpacity
+        style={styles.backButton}
+        activeOpacity={0.7}
+        onPress={() => navigation.goBack()}
+      >
+        <Icon name="chevron-back" size={20} color={colors.text} />
+      </TouchableOpacity>
       <View style={styles.content}>
         <Image
           source={require('../assets/images/logo.png')}
@@ -127,6 +135,18 @@ const createStyles = (colors: ThemeColors) =>
     container: {
       flex: 1,
       backgroundColor: colors.background,
+    },
+    backButton: {
+      width: 36,
+      height: 36,
+      marginTop: 8,
+      marginLeft: 16,
+      borderRadius: 10,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+      justifyContent: 'center',
+      alignItems: 'center',
     },
     content: {
       flex: 1,
