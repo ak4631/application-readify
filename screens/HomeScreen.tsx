@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   Animated,
   Easing,
@@ -12,7 +12,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
-import { useNavigation } from '@react-navigation/native';
+import { useFocusEffect, useNavigation } from '@react-navigation/native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -127,50 +127,56 @@ export default function HomeScreen() {
       .then(({ data }) => setLibraries((data as FeaturedLibrary[]) ?? []));
   }, []);
 
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    let isMounted = true;
-
-    (async () => {
-      const saved = await fetchSavedLocation(session.user.id).catch(() => null);
-      if (!isMounted) {
+  // useFocusEffect (not a plain effect) so coming back from setting/changing
+  // location (Map's "set location" button, or first-run onboarding) refreshes
+  // the location label and nearby list immediately, instead of only ever
+  // reading the location that existed when Home first mounted.
+  useFocusEffect(
+    useCallback(() => {
+      if (!session) {
         return;
       }
+      let isMounted = true;
 
-      if (saved) {
-        setLocationLabel(saved.address ?? 'Current location');
-        const nearby = await fetchNearbyVendors({
-          latitude: saved.latitude,
-          longitude: saved.longitude,
-          limit: 2,
-        }).catch(() => []);
-        if (isMounted) {
-          setNearbyVendors(
-            nearby.map(v => ({
-              id: v.id,
-              name: v.name,
-              locality: null,
-              city: v.city,
-              image_url: v.image_url,
-              distanceKm: v.distance_km,
-            })),
-          );
+      (async () => {
+        const saved = await fetchSavedLocation(session.user.id).catch(() => null);
+        if (!isMounted) {
+          return;
         }
-      } else {
-        const shown = await AsyncStorage.getItem(LOCATION_PROMPT_SHOWN_KEY);
-        if (!shown && isMounted) {
-          navigation.navigate('LocationPermission');
-        }
-      }
-    })();
 
-    return () => {
-      isMounted = false;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [session]);
+        if (saved) {
+          setLocationLabel(saved.address ?? 'Current location');
+          const nearby = await fetchNearbyVendors({
+            latitude: saved.latitude,
+            longitude: saved.longitude,
+            limit: 2,
+          }).catch(() => []);
+          if (isMounted) {
+            setNearbyVendors(
+              nearby.map(v => ({
+                id: v.id,
+                name: v.name,
+                locality: null,
+                city: v.city,
+                image_url: v.image_url,
+                distanceKm: v.distance_km,
+              })),
+            );
+          }
+        } else {
+          const shown = await AsyncStorage.getItem(LOCATION_PROMPT_SHOWN_KEY);
+          if (!shown && isMounted) {
+            navigation.navigate('LocationPermission');
+          }
+        }
+      })();
+
+      return () => {
+        isMounted = false;
+      };
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [session]),
+  );
 
   const nearby = nearbyVendors ?? libraries.slice(0, 2);
   const topRated = libraries.slice(2, 6);
@@ -263,7 +269,12 @@ export default function HomeScreen() {
                 key={category.id}
                 style={styles.categoryCard}
                 activeOpacity={0.8}
-                onPress={() => navigation.navigate('Explore', { initialCategory: category.id })}
+                onPress={() =>
+                  navigation.navigate('CategoryListing', {
+                    categoryId: category.id,
+                    categoryName: category.title,
+                  })
+                }
               >
                 <AnimatedCategoryIcon icon={category.icon} index={index} colors={colors} styles={styles} />
                 <Text style={styles.categoryText} numberOfLines={2}>

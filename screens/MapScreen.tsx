@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -9,7 +9,7 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { Map, Camera, Marker } from '@maplibre/maplibre-react-native';
+import { Map, Camera, Marker, type CameraRef } from '@maplibre/maplibre-react-native';
 import { useFocusEffect, useNavigation, useRoute } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
@@ -36,6 +36,11 @@ export default function MapScreen() {
 
   const [center, setCenter] = useState<[number, number]>(DEFAULT_CENTER);
   const [hasKnownLocation, setHasKnownLocation] = useState(false);
+  const cameraRef = useRef<CameraRef>(null);
+  // Tracks whether we've already moved the camera once, so the very first
+  // center (handled by Camera's own `initialViewState`) doesn't also trigger
+  // a redundant imperative jump.
+  const hasCenteredOnce = useRef(false);
   const [selectedCategory, setSelectedCategory] = useState<LibraryCategory | 'all'>('all');
   const [vendors, setVendors] = useState<NearbyVendor[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -101,6 +106,19 @@ export default function MapScreen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [hasKnownLocation],
   );
+
+  // `initialViewState` (above) only applies once, when the Camera first
+  // mounts -- MapLibre does not react to it changing afterwards. So once the
+  // user sets or changes their location (from Home or from this screen's own
+  // "set location" button) and comes back here, the map would otherwise keep
+  // showing wherever it started. Move the camera imperatively instead.
+  useEffect(() => {
+    if (!hasCenteredOnce.current) {
+      hasCenteredOnce.current = true;
+      return;
+    }
+    cameraRef.current?.easeTo({ center, duration: 500 });
+  }, [center]);
 
   const openVendor = (vendor: NearbyVendor) =>
     navigation.navigate('LibraryDetails', { libraryId: vendor.id, libraryName: vendor.name });
@@ -174,7 +192,7 @@ export default function MapScreen() {
       {viewMode === 'map' ? (
         <View style={styles.mapContainer}>
           <Map style={styles.map} mapStyle={MAP_STYLE_URL}>
-            <Camera initialViewState={initialViewState} />
+            <Camera ref={cameraRef} initialViewState={initialViewState} />
             {vendors.map(vendor => (
               <Marker
                 key={vendor.id}

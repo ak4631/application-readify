@@ -22,6 +22,7 @@ import {
   type SlotOption,
 } from '../lib/libraryAvailability';
 import SlotPicker from '../components/SlotPicker';
+import DayStepper, { MIN_FLEX_DAYS } from '../components/DayStepper';
 import {
   cancelSubscription,
   createSubscription,
@@ -33,7 +34,10 @@ import type { ThemeColors } from '../constants/colors';
 // A SESSIONS-unit plan is a visit-count pass, not a calendar range -- it has
 // no meaningful start/end date, so it isn't offered as a subscription here
 // (the server-side RPC rejects it too, this just keeps the button honest).
+// A flexible plan is stored as duration_unit HOURS (the rate's unit) but IS
+// offered here -- it's always a customer-chosen-length subscription.
 const SUBSCRIBABLE_UNITS: Plan['duration_unit'][] = ['DAYS', 'MONTHS', 'YEARS'];
+const isSubscribable = (plan: Plan) => plan.is_flexible || SUBSCRIBABLE_UNITS.includes(plan.duration_unit);
 
 export default function SubscribeScreen() {
   const { colors } = useTheme();
@@ -55,6 +59,8 @@ export default function SubscribeScreen() {
   const [slotOptions, setSlotOptions] = useState<SlotOption[]>([]);
   const [isLoadingOptions, setIsLoadingOptions] = useState(false);
   const [selectedStart, setSelectedStart] = useState<string | null>(null);
+  // Flexible plans only: how many of the 1-14 days the customer has picked.
+  const [selectedDays, setSelectedDays] = useState(MIN_FLEX_DAYS);
 
   const loadData = useCallback(async () => {
     try {
@@ -63,7 +69,7 @@ export default function SubscribeScreen() {
         fetchActiveSubscription(libraryId),
         fetchSlotOptions(libraryId, toLocalDateId(new Date()), null).catch(() => ({ totalSeats: 0, options: [] })),
       ]);
-      setPlans(plansData.filter(plan => SUBSCRIBABLE_UNITS.includes(plan.duration_unit)));
+      setPlans(plansData.filter(isSubscribable));
       setActiveSubscription(subscription);
       setIsSeatVendor(seatProbe.totalSeats > 0);
       setTotalSeats(seatProbe.totalSeats);
@@ -80,13 +86,10 @@ export default function SubscribeScreen() {
     }, [loadData]),
   );
 
-  const openTimePicker = async (plan: Plan) => {
-    setPickerPlanId(plan.id);
-    setSelectedStart(null);
-    setSlotOptions([]);
+  const loadOptionsForDays = async (plan: Plan, days: number) => {
     setIsLoadingOptions(true);
     try {
-      const data = await fetchSubscriptionOptions(libraryId, plan.id);
+      const data = await fetchSubscriptionOptions(libraryId, plan.id, plan.is_flexible ? days : undefined);
       setSlotOptions(data.options);
       setTotalSeats(data.totalSeats);
     } catch (error: any) {
@@ -96,9 +99,35 @@ export default function SubscribeScreen() {
     }
   };
 
+  const openTimePicker = async (plan: Plan) => {
+    setPickerPlanId(plan.id);
+    setSelectedStart(null);
+    setSlotOptions([]);
+    setSelectedDays(MIN_FLEX_DAYS);
+    // A flexible non-seat plan has nothing to check availability for -- just
+    // the day count, which the customer hasn't set yet, so there's nothing to
+    // fetch until they open the picker (and, for seat vendors, nothing to show
+    // until they do).
+    if (isSeatVendor) {
+      await loadOptionsForDays(plan, MIN_FLEX_DAYS);
+    }
+  };
+
+  const handleDaysChange = (plan: Plan, days: number) => {
+    setSelectedDays(days);
+    setSelectedStart(null);
+    if (isSeatVendor) {
+      loadOptionsForDays(plan, days);
+    }
+  };
+
   const handleSubscribe = async (plan: Plan) => {
-    if (isSeatVendor && (pickerPlanId !== plan.id || !selectedStart)) {
-      // First tap opens the time picker; the confirm tap subscribes.
+    const needsPicker = plan.is_flexible || isSeatVendor;
+    const pickerReady = pickerPlanId === plan.id && (!isSeatVendor || !!selectedStart);
+
+    if (needsPicker && !pickerReady) {
+      // First tap opens the picker (day stepper and/or time picker); the
+      // confirm tap subscribes.
       await openTimePicker(plan);
       return;
     }
@@ -109,6 +138,7 @@ export default function SubscribeScreen() {
         libraryId,
         plan.id,
         isSeatVendor ? selectedStart ?? undefined : undefined,
+        plan.is_flexible ? selectedDays : undefined,
       );
       setPickerPlanId(null);
       await loadData();
@@ -209,19 +239,40 @@ export default function SubscribeScreen() {
               const isCurrentPlan = activeSubscription?.plan_id === plan.id;
               const disableButton =
                 subscribingPlanId !== null || isCurrentPlan || !!activeSubscription;
+              const isPickerOpenForThisPlan = pickerPlanId === plan.id;
+              const flexTotal = plan.is_flexible
+                ? Math.round(plan.price * (plan.daily_hours ?? 0) * selectedDays)
+                : 0;
 
               return (
                 <View key={plan.id} style={styles.planCard}>
                   <Text style={styles.planName}>{plan.name}</Text>
                   <View style={styles.priceRow}>
-                    <Text style={styles.price}>₹{plan.price}</Text>
-                    <Text style={styles.duration}>/{formatPlanDuration(plan)}</Text>
+                    {plan.is_flexible ? (
+                      <Text style={styles.price}>₹{plan.price}/hr</Text>
+                    ) : (
+                      <>
+                        <Text style={styles.price}>₹{plan.price}</Text>
+                        <Text style={styles.duration}>/{formatPlanDuration(plan)}</Text>
+                      </>
+                    )}
                   </View>
                   {plan.description && (
                     <Text style={styles.planDescription}>{plan.description}</Text>
                   )}
 
-                  {pickerPlanId === plan.id && isSeatVendor && (
+                  {isPickerOpenForThisPlan && plan.is_flexible && (
+                    <View style={styles.pickerWrap}>
+                      <DayStepper
+                        days={selectedDays}
+                        onChange={days => handleDaysChange(plan, days)}
+                        pricePerDay={Math.round(plan.price * (plan.daily_hours ?? 0))}
+                        totalPrice={flexTotal}
+                      />
+                    </View>
+                  )}
+
+                  {isPickerOpenForThisPlan && isSeatVendor && (
                     <View style={styles.pickerWrap}>
                       <SlotPicker
                         options={slotOptions}
@@ -229,7 +280,11 @@ export default function SubscribeScreen() {
                         loading={isLoadingOptions}
                         selectedStart={selectedStart}
                         onSelect={setSelectedStart}
-                        countSuffix={`for the full ${formatPlanDuration(plan)}`}
+                        countSuffix={
+                          plan.is_flexible
+                            ? `for your ${selectedDays}-day pass`
+                            : `for the full ${formatPlanDuration(plan)}`
+                        }
                       />
                     </View>
                   )}
@@ -248,7 +303,13 @@ export default function SubscribeScreen() {
                           ? 'Current Plan'
                           : activeSubscription
                           ? 'Cancel current plan first'
-                          : isSeatVendor && pickerPlanId !== plan.id
+                          : plan.is_flexible
+                          ? !isPickerOpenForThisPlan
+                            ? 'Choose your days'
+                            : isSeatVendor && !selectedStart
+                            ? 'Select a time above'
+                            : `Confirm ${selectedDays}-day pass · ₹${flexTotal}`
+                          : isSeatVendor && !isPickerOpenForThisPlan
                           ? 'Choose daily time'
                           : isSeatVendor && !selectedStart
                           ? 'Select a time above'

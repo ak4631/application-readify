@@ -28,6 +28,10 @@ export type RootStackParamList = {
   OtpVerification: { email: string };
   Home: undefined;
   Explore: { initialCategory?: string } | undefined;
+  // A Home category tile navigates straight here (one category, pre-filtered)
+  // rather than to Explore -- Explore itself is untouched by this and stays
+  // reachable via search/bottom nav/"See all".
+  CategoryListing: { categoryId: string; categoryName: string };
   Map: { focusVendorId?: string } | undefined;
   // returnTo: when set, "done" (or skip) goes back to that screen instead of
   // replacing the stack with Home -- used when this is opened to change an

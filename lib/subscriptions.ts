@@ -49,12 +49,15 @@ export async function createSubscription(
   vendorId: string,
   planId: string,
   startTime?: string,
+  // Only for a flexible plan -- the number of days (1-14) the customer chose.
+  days?: number,
 ) {
   const { data, error } = await supabase
     .rpc('create_customer_subscription', {
       p_vendor_id: vendorId,
       p_plan_id: planId,
       p_start_time: startTime ?? null,
+      p_days: days ?? null,
     })
     .single();
 

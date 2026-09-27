@@ -13,6 +13,7 @@ import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/OtpVerificationScreen';
 import HomeScreen from '../screens/HomeScreen';
 import ExploreScreen from '../screens/ExploreScreen';
+import CategoryListingScreen from '../screens/CategoryListingScreen';
 import MapScreen from '../screens/MapScreen';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
 import BookingsScreen from '../screens/BookingsScreen';
@@ -77,6 +78,7 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Explore" component={ExploreScreen} />
+            <Stack.Screen name="CategoryListing" component={CategoryListingScreen} />
             <Stack.Screen name="Map" component={MapScreen} />
             <Stack.Screen
               name="LocationPermission"

@@ -52,11 +52,18 @@ export async function fetchSlotOptions(
   return parseOptions(data as any[] | null);
 }
 
-// Seats free at each daily start time for EVERY day of the plan.
-export async function fetchSubscriptionOptions(vendorId: string, planId: string): Promise<SlotOptions> {
+// Seats free at each daily start time for EVERY day of the plan. `days` is
+// only meaningful for a flexible plan (sizes the check to the customer's
+// current stepper value); omit it for an ordinary fixed-duration plan.
+export async function fetchSubscriptionOptions(
+  vendorId: string,
+  planId: string,
+  days?: number,
+): Promise<SlotOptions> {
   const { data, error } = await supabase.rpc('get_library_subscription_options', {
     p_vendor_id: vendorId,
     p_plan_id: planId,
+    p_days: days ?? null,
   });
 
   if (error) {
@@ -87,8 +94,13 @@ export function formatHours(hours: number) {
 }
 
 // A plan usable for a single visit/day. `hours` null = the whole opening
-// window. Returns null for plans that are not single-visit (e.g. monthly).
+// window. Returns null for plans that are not single-visit (e.g. monthly, or
+// a flexible day-pass -- that one is always a multi-day subscription, even
+// at 1 day, so it never shows in the single-visit Booking flow).
 export function visitPlanHours(plan: Plan): { hours: number | null } | null {
+  if (plan.is_flexible) {
+    return null;
+  }
   if (plan.duration_unit === 'HOURS') {
     return { hours: plan.duration_value };
   }
