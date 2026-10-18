@@ -1,10 +1,10 @@
+import BrandMark from '../components/BrandMark';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -66,11 +66,7 @@ export default function LoginScreen() {
         <Icon name="chevron-back" size={20} color={colors.text} />
       </TouchableOpacity>
       <View style={styles.content}>
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <BrandMark style={styles.logo} />
 
         <Text style={styles.title}>Welcome Back</Text>
 

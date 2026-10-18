@@ -1,10 +1,10 @@
+import BrandMark from '../components/BrandMark';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -95,16 +95,12 @@ export default function SignUpScreen() {
         <Icon name="chevron-back" size={20} color={colors.text} />
       </TouchableOpacity>
       <View style={styles.content}>
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <BrandMark style={styles.logo} />
 
         <Text style={styles.title}>Create Account</Text>
 
         <Text style={styles.subtitle}>
-          Join Readify India and start your reading journey.
+          Join Vriddhora and start your reading journey.
         </Text>
 
         <InputField
@@ -156,9 +152,7 @@ export default function SignUpScreen() {
           onPress={() => navigation.navigate('Login')}
           disabled={loading}
         >
-          <Text style={styles.loginLink}>
-            Already have an account? Log In
-          </Text>
+          <Text style={styles.loginLink}>Already have an account? Log In</Text>
         </TouchableOpacity>
       </View>
     </SafeAreaView>

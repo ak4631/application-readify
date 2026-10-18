@@ -1,10 +1,10 @@
+import BrandMark from '../components/BrandMark';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -23,7 +23,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export default function ForgotPasswordScreen() {
   const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>>();
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList, 'ForgotPassword'>
+    >();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
 
@@ -53,7 +55,7 @@ export default function ForgotPasswordScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+        <BrandMark style={styles.logo} />
 
         <Text style={styles.title}>Forgot Password</Text>
         <Text style={styles.subtitle}>
@@ -95,8 +97,19 @@ const createStyles = (colors: ThemeColors) =>
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
     logo: { width: 90, height: 90, alignSelf: 'center', marginBottom: 32 },
-    title: { fontSize: 30, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    subtitle: { marginTop: 12, marginBottom: 40, fontSize: 16, color: colors.subText, textAlign: 'center' },
+    title: {
+      fontSize: 30,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    subtitle: {
+      marginTop: 12,
+      marginBottom: 40,
+      fontSize: 16,
+      color: colors.subText,
+      textAlign: 'center',
+    },
     resetButton: {
       width: '100%',
       height: 56,
@@ -106,6 +119,15 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
     },
     buttonDisabled: { opacity: 0.6 },
-    resetButtonText: { color: colors.onPrimary, fontSize: 17, fontWeight: '700' },
-    backToLogin: { textAlign: 'center', marginTop: 28, fontSize: 15, color: colors.secondary },
+    resetButtonText: {
+      color: colors.onPrimary,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    backToLogin: {
+      textAlign: 'center',
+      marginTop: 28,
+      fontSize: 15,
+      color: colors.secondary,
+    },
   });

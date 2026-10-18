@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import {
   ActivityIndicator,
   Image,
@@ -52,18 +53,22 @@ export default function ExploreScreen() {
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
   const { session } = useAuth();
-  const initialCategory = route.params?.initialCategory as LibraryCategory | undefined;
+  const initialCategory = route.params?.initialCategory as
+    | LibraryCategory
+    | undefined;
+  const services = useServiceCatalog();
 
   const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState<LibraryCategory | 'all'>(
-    initialCategory ?? 'all',
-  );
+  const [selectedCategory, setSelectedCategory] = useState<
+    LibraryCategory | 'all'
+  >(initialCategory ?? 'all');
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
-    null,
-  );
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -72,7 +77,10 @@ export default function ExploreScreen() {
     fetchSavedLocation(session.user.id)
       .then(saved => {
         if (saved) {
-          setUserLocation({ latitude: saved.latitude, longitude: saved.longitude });
+          setUserLocation({
+            latitude: saved.latitude,
+            longitude: saved.longitude,
+          });
         }
       })
       .catch(() => {});
@@ -125,7 +133,11 @@ export default function ExploreScreen() {
         );
         setLibraries([]);
         setErrorMessage(
-          `Supabase Error\n\nMessage: ${error.message || 'Unknown error'}\n\nCode: ${error.code || 'N/A'}\n\nDetails: ${error.details || 'N/A'}\n\nHint: ${error.hint || 'N/A'}`,
+          `Supabase Error\n\nMessage: ${
+            error.message || 'Unknown error'
+          }\n\nCode: ${error.code || 'N/A'}\n\nDetails: ${
+            error.details || 'N/A'
+          }\n\nHint: ${error.hint || 'N/A'}`,
         );
       } else {
         setLibraries((data ?? []) as Library[]);
@@ -220,8 +232,10 @@ export default function ExploreScreen() {
         .join(' ')
         .toLowerCase();
 
-      const matchesSearch = query.length === 0 || searchableText.includes(query);
-      const matchesCategory = selectedCategory === 'all' || library.category === selectedCategory;
+      const matchesSearch =
+        query.length === 0 || searchableText.includes(query);
+      const matchesCategory =
+        selectedCategory === 'all' || library.category === selectedCategory;
 
       return matchesSearch && matchesCategory;
     });
@@ -241,7 +255,9 @@ export default function ExploreScreen() {
   const getLocation = (library: Library) =>
     library.distance_km != null
       ? `${library.distance_km.toFixed(1)} km away`
-      : [library.locality, library.city, library.state].filter(Boolean).join(', ');
+      : [library.locality, library.city, library.state]
+          .filter(Boolean)
+          .join(', ');
 
   const getAddress = (library: Library) =>
     [
@@ -266,11 +282,18 @@ export default function ExploreScreen() {
       >
         <View style={styles.header}>
           <Text style={styles.title}>Explore</Text>
-          <Text style={styles.subtitle}>Discover libraries and reading spaces around you.</Text>
+          <Text style={styles.subtitle}>
+            Discover libraries and reading spaces around you.
+          </Text>
         </View>
 
         <View style={styles.searchContainer}>
-          <Icon name="search" size={20} color={colors.subText} style={styles.searchIcon} />
+          <Icon
+            name="search"
+            size={20}
+            color={colors.subText}
+            style={styles.searchIcon}
+          />
           <TextInput
             style={styles.searchInput}
             value={searchQuery}
@@ -301,7 +324,10 @@ export default function ExploreScreen() {
             return (
               <TouchableOpacity
                 key={category.id}
-                style={[styles.categoryCard, isSelected && styles.selectedCategoryCard]}
+                style={[
+                  styles.categoryCard,
+                  isSelected && styles.selectedCategoryCard,
+                ]}
                 activeOpacity={0.7}
                 onPress={() => handleCategoryPress(category.id)}
               >
@@ -311,7 +337,12 @@ export default function ExploreScreen() {
                   color={isSelected ? colors.primary : colors.subText}
                   style={styles.categoryIcon}
                 />
-                <Text style={[styles.categoryText, isSelected && styles.selectedCategoryText]}>
+                <Text
+                  style={[
+                    styles.categoryText,
+                    isSelected && styles.selectedCategoryText,
+                  ]}
+                >
                   {category.name}
                 </Text>
               </TouchableOpacity>
@@ -326,22 +357,40 @@ export default function ExploreScreen() {
               : CATEGORIES.find(c => c.id === selectedCategory)?.name}
           </Text>
           {selectedCategory !== 'all' && (
-            <TouchableOpacity activeOpacity={0.7} onPress={() => setSelectedCategory('all')}>
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onPress={() => setSelectedCategory('all')}
+            >
               <Text style={styles.clearFilterText}>Clear filter</Text>
             </TouchableOpacity>
           )}
         </View>
 
-        {isLoading ? (
+        {selectedCategory !== 'all' &&
+        !services.loading &&
+        !services.enabled(selectedCategory) ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>Coming Soon in Your Area</Text>
+            <Text style={styles.stateText}>
+              This service is not available for booking yet.
+            </Text>
+          </View>
+        ) : isLoading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator size="large" color={colors.primary} />
             <Text style={styles.stateTitle}>Finding libraries</Text>
-            <Text style={styles.stateText}>Please wait while we load available libraries.</Text>
+            <Text style={styles.stateText}>
+              Please wait while we load available libraries.
+            </Text>
           </View>
         ) : errorMessage ? (
           <View style={styles.stateCard}>
             <View style={styles.noResultsIconCircle}>
-              <Icon name="alert-circle-outline" size={30} color={colors.primary} />
+              <Icon
+                name="alert-circle-outline"
+                size={30}
+                color={colors.primary}
+              />
             </View>
             <Text style={styles.stateTitle}>Something went wrong</Text>
             <Text style={styles.stateText}>{errorMessage}</Text>
@@ -369,7 +418,9 @@ export default function ExploreScreen() {
                 onPress={() => openLibrary(library)}
               >
                 <Image
-                  source={{ uri: library.image_url ?? getLibraryImage(library.id) }}
+                  source={{
+                    uri: library.image_url ?? getLibraryImage(library.id),
+                  }}
                   style={styles.imagePlaceholder}
                   resizeMode="cover"
                 />
@@ -381,15 +432,24 @@ export default function ExploreScreen() {
                         {library.name}
                       </Text>
                       <Text style={styles.libraryCategory}>
-                        {CATEGORIES.find(c => c.id === library.category)?.name ?? 'Library'}
+                        {CATEGORIES.find(c => c.id === library.category)
+                          ?.name ?? 'Library'}
                       </Text>
                     </View>
-                    <Icon name="chevron-forward" size={22} color={colors.primary} />
+                    <Icon
+                      name="chevron-forward"
+                      size={22}
+                      color={colors.primary}
+                    />
                   </View>
 
                   {location.length > 0 && (
                     <View style={styles.libraryLocationRow}>
-                      <Icon name="location-outline" size={14} color={colors.subText} />
+                      <Icon
+                        name="location-outline"
+                        size={14}
+                        color={colors.subText}
+                      />
                       <Text style={styles.libraryLocation} numberOfLines={2}>
                         {location}
                       </Text>
@@ -403,8 +463,14 @@ export default function ExploreScreen() {
                   )}
 
                   <View style={styles.viewDetailsRow}>
-                    <Text style={styles.viewDetailsText}>View library details</Text>
-                    <Icon name="arrow-forward" size={14} color={colors.primary} />
+                    <Text style={styles.viewDetailsText}>
+                      View library details
+                    </Text>
+                    <Icon
+                      name="arrow-forward"
+                      size={14}
+                      color={colors.primary}
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -440,10 +506,24 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+    },
     header: { marginTop: 8 },
-    title: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: colors.text },
-    subtitle: { marginTop: 8, fontSize: 16, lineHeight: 24, color: colors.subText },
+    title: {
+      fontSize: 30,
+      lineHeight: 36,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    subtitle: {
+      marginTop: 8,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.subText,
+    },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -456,7 +536,12 @@ const createStyles = (colors: ThemeColors) =>
       borderRadius: Radius.lg,
     },
     searchIcon: { marginRight: 10 },
-    searchInput: { flex: 1, fontSize: 15, color: colors.text, paddingVertical: 0 },
+    searchInput: {
+      flex: 1,
+      fontSize: 15,
+      color: colors.text,
+      paddingVertical: 0,
+    },
     clearButton: {
       width: 28,
       height: 28,
@@ -465,8 +550,20 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       backgroundColor: colors.border,
     },
-    sectionTitle: { marginTop: 28, marginBottom: 14, fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.text },
-    categoryGrid: { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'space-between', rowGap: 12 },
+    sectionTitle: {
+      marginTop: 28,
+      marginBottom: 14,
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    categoryGrid: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'space-between',
+      rowGap: 12,
+    },
     categoryCard: {
       width: '48%',
       minHeight: 92,
@@ -479,12 +576,30 @@ const createStyles = (colors: ThemeColors) =>
       paddingHorizontal: 8,
       paddingVertical: 16,
     },
-    selectedCategoryCard: { backgroundColor: colors.primaryLight, borderColor: colors.primary },
+    selectedCategoryCard: {
+      backgroundColor: colors.primaryLight,
+      borderColor: colors.primary,
+    },
     categoryIcon: { marginBottom: 8 },
-    categoryText: { fontSize: 13, fontWeight: '600', color: colors.subText, textAlign: 'center' },
+    categoryText: {
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.subText,
+      textAlign: 'center',
+    },
     selectedCategoryText: { color: colors.primary, fontWeight: '700' },
-    resultsHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    clearFilterText: { marginTop: 28, marginBottom: 14, fontSize: 13, fontWeight: '600', color: colors.primary },
+    resultsHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    clearFilterText: {
+      marginTop: 28,
+      marginBottom: 14,
+      fontSize: 13,
+      fontWeight: '600',
+      color: colors.primary,
+    },
     libraryCard: {
       marginBottom: 16,
       overflow: 'hidden',
@@ -493,16 +608,50 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    imagePlaceholder: { height: 130, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    imagePlaceholder: {
+      height: 130,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     libraryInfo: { padding: 16 },
-    libraryTopRow: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+    libraryTopRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
     libraryNameContainer: { flex: 1, paddingRight: 12 },
     libraryName: { fontSize: 18, fontWeight: '700', color: colors.text },
-    libraryCategory: { marginTop: 4, fontSize: 12, fontWeight: '600', color: colors.subText },
-    libraryLocationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 12 },
-    libraryLocation: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
-    libraryAddress: { marginTop: 6, fontSize: 13, lineHeight: 19, color: colors.subText },
-    viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+    libraryCategory: {
+      marginTop: 4,
+      fontSize: 12,
+      fontWeight: '600',
+      color: colors.subText,
+    },
+    libraryLocationRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 5,
+      marginTop: 12,
+    },
+    libraryLocation: {
+      flex: 1,
+      fontSize: 14,
+      lineHeight: 20,
+      color: colors.text,
+    },
+    libraryAddress: {
+      marginTop: 6,
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.subText,
+    },
+    viewDetailsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 14,
+    },
     viewDetailsText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     stateCard: {
       marginTop: 4,
@@ -514,8 +663,20 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       alignItems: 'center',
     },
-    stateTitle: { marginTop: 16, fontSize: 19, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    stateText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.subText, textAlign: 'center' },
+    stateTitle: {
+      marginTop: 16,
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    stateText: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.subText,
+      textAlign: 'center',
+    },
     noResultsCard: {
       marginTop: 4,
       paddingHorizontal: 24,
@@ -535,8 +696,19 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       marginBottom: 16,
     },
-    noResultsTitle: { fontSize: 19, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    noResultsText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.subText, textAlign: 'center' },
+    noResultsTitle: {
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    noResultsText: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.subText,
+      textAlign: 'center',
+    },
     resetButton: {
       marginTop: 22,
       minHeight: 46,
@@ -546,5 +718,9 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    resetButtonText: { fontSize: 14, fontWeight: '700', color: colors.onPrimary },
+    resetButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.onPrimary,
+    },
   });

@@ -1,5 +1,4 @@
 import { supabase } from './supabase';
-import type { Plan } from './plans';
 
 // Customers never see individual seats: the server assigns one when they book.
 // They only see how many seats are free for each start time.
@@ -33,43 +32,19 @@ function parseOptions(rows: any[] | null): SlotOptions {
   };
 }
 
-// hours = null means the whole opening window.
-export async function fetchSlotOptions(
-  vendorId: string,
-  date: string,
-  hours: number | null,
-): Promise<SlotOptions> {
-  const { data, error } = await supabase.rpc('get_library_slot_options', {
-    p_vendor_id: vendorId,
-    p_date: date,
-    p_hours: hours,
-  });
-
-  if (error) {
-    throw error;
-  }
-
-  return parseOptions(data as any[] | null);
-}
-
-// Seats free at each daily start time for EVERY day of the plan. `days` is
-// only meaningful for a flexible plan (sizes the check to the customer's
-// current stepper value); omit it for an ordinary fixed-duration plan.
-export async function fetchSubscriptionOptions(
+export async function fetchPurchaseOptions(
   vendorId: string,
   planId: string,
+  date: string,
   days?: number,
 ): Promise<SlotOptions> {
-  const { data, error } = await supabase.rpc('get_library_subscription_options', {
+  const { data, error } = await supabase.rpc('get_purchase_options', {
     p_vendor_id: vendorId,
     p_plan_id: planId,
+    p_date: date,
     p_days: days ?? null,
   });
-
-  if (error) {
-    throw error;
-  }
-
+  if (error) throw error;
   return parseOptions(data as any[] | null);
 }
 
@@ -93,19 +68,3 @@ export function formatHours(hours: number) {
   return `${Number.isInteger(hours) ? hours : hours.toFixed(1)}h`;
 }
 
-// A plan usable for a single visit/day. `hours` null = the whole opening
-// window. Returns null for plans that are not single-visit (e.g. monthly, or
-// a flexible day-pass -- that one is always a multi-day subscription, even
-// at 1 day, so it never shows in the single-visit Booking flow).
-export function visitPlanHours(plan: Plan): { hours: number | null } | null {
-  if (plan.is_flexible) {
-    return null;
-  }
-  if (plan.duration_unit === 'HOURS') {
-    return { hours: plan.duration_value };
-  }
-  if (plan.duration_unit === 'DAYS' && plan.duration_value === 1) {
-    return { hours: plan.daily_hours };
-  }
-  return null;
-}

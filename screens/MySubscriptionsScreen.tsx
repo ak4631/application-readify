@@ -1,6 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
+  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,14 +11,20 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
+import QRCode from 'react-native-qrcode-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
-import { fetchSubscriptions, type Subscription } from '../lib/subscriptions';
+import {
+  fetchSubscriptions,
+  cancelSubscription,
+  type Subscription,
+} from '../lib/subscriptions';
 import type { ThemeColors } from '../constants/colors';
 
 const STATUS_LABEL: Record<Subscription['status'], string> = {
+  pending: 'Awaiting payment',
   active: 'Active',
   expired: 'Expired',
   cancelled: 'Cancelled',
@@ -70,16 +77,26 @@ export default function MySubscriptionsScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={loadSubscriptions} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={loadSubscriptions}
+            tintColor={colors.primary}
+          />
         }
       >
         <View style={styles.header}>
           <Text style={styles.title}>My Subscriptions</Text>
-          <Text style={styles.subtitle}>Plans you've subscribed to across libraries.</Text>
+          <Text style={styles.subtitle}>
+            Plans you've subscribed to across libraries.
+          </Text>
         </View>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={styles.loader}
+          />
         ) : subscriptions.length > 0 ? (
           subscriptions.map(subscription => (
             <TouchableOpacity
@@ -97,17 +114,79 @@ export default function MySubscriptionsScreen() {
                 <Text style={styles.libraryName} numberOfLines={1}>
                   {subscription.library_name}
                 </Text>
-                <Text style={[styles.status, { color: statusColor(subscription.status) }]}>
+                <Text
+                  style={[
+                    styles.status,
+                    { color: statusColor(subscription.status) },
+                  ]}
+                >
                   {STATUS_LABEL[subscription.status]}
                 </Text>
               </View>
 
               <Text style={styles.planName}>{subscription.plan_name}</Text>
+              {['pending', 'active'].includes(subscription.status) && (
+                <TouchableOpacity
+                  onPress={event => {
+                    event.stopPropagation();
+                    Alert.alert(
+                      'Cancel subscription',
+                      'Full refund before the reserved start; no refund afterward.',
+                      [
+                        { text: 'Keep subscription', style: 'cancel' },
+                        {
+                          text: 'Cancel subscription',
+                          style: 'destructive',
+                          onPress: async () => {
+                            try {
+                              await cancelSubscription(subscription.id);
+                              await loadSubscriptions();
+                            } catch (error: any) {
+                              Alert.alert('Could not cancel', error.message);
+                            }
+                          },
+                        },
+                      ],
+                    );
+                  }}
+                >
+                  <Text style={styles.cancelAction}>Cancel subscription</Text>
+                </TouchableOpacity>
+              )}
+              {subscription.status === 'active' && (
+                <View style={styles.qrWrap}>
+                  <QRCode
+                    value={`subscription:${subscription.id}`}
+                    size={100}
+                  />
+                </View>
+              )}
+              {subscription.status === 'active' && (
+                <TouchableOpacity
+                  onPress={event => {
+                    event.stopPropagation();
+                    navigation.navigate('Extension', {
+                      targetId: subscription.id,
+                      vendorId: subscription.vendor_id,
+                      libraryName: subscription.library_name,
+                    });
+                  }}
+                >
+                  <Text style={{ color: colors.primary }}>
+                    Extend today's stay
+                  </Text>
+                </TouchableOpacity>
+              )}
 
               <View style={styles.detailRow}>
-                <Icon name="calendar-outline" size={13} color={colors.subText} />
+                <Icon
+                  name="calendar-outline"
+                  size={13}
+                  color={colors.subText}
+                />
                 <Text style={styles.detailText}>
-                  {formatDate(subscription.start_date)} – {formatDate(subscription.end_date)}
+                  {formatDate(subscription.start_date)} –{' '}
+                  {formatDate(subscription.end_date)}
                 </Text>
               </View>
 
@@ -116,7 +195,9 @@ export default function MySubscriptionsScreen() {
                   <Icon name="body-outline" size={13} color={colors.subText} />
                   <Text style={styles.detailText}>
                     Daily from {subscription.slot_start}
-                    {subscription.slot_hours ? ` for ${subscription.slot_hours}h` : ''}
+                    {subscription.slot_hours
+                      ? ` for ${subscription.slot_hours}h`
+                      : ''}
                   </Text>
                 </View>
               ) : null}
@@ -144,7 +225,11 @@ export default function MySubscriptionsScreen() {
               Explore libraries to subscribe to a plan.
             </Text>
 
-            <TouchableOpacity style={styles.exploreButton} activeOpacity={0.8} onPress={() => navigation.navigate('Explore')}>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Explore')}
+            >
               <Text style={styles.exploreButtonText}>Explore Libraries</Text>
             </TouchableOpacity>
           </View>
@@ -156,12 +241,33 @@ export default function MySubscriptionsScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    qrWrap: {
+      marginTop: 12,
+      padding: 12,
+      backgroundColor: '#fff',
+      alignSelf: 'flex-start',
+    },
+    cancelAction: { color: colors.danger, marginVertical: 8 },
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+    },
     header: { marginTop: 8 },
-    title: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: colors.text },
-    subtitle: { marginTop: 8, fontSize: 16, lineHeight: 24, color: colors.subText },
+    title: {
+      fontSize: 30,
+      lineHeight: 36,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    subtitle: {
+      marginTop: 8,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.subText,
+    },
     loader: { marginTop: 40 },
     card: {
       marginTop: 16,
@@ -171,11 +277,31 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    cardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    libraryName: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.text, marginRight: 8 },
+    cardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    libraryName: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginRight: 8,
+    },
     status: { fontSize: 12, fontWeight: '700' },
-    planName: { marginTop: 4, fontSize: 14, fontWeight: '600', color: colors.primary },
-    detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 10 },
+    planName: {
+      marginTop: 4,
+      fontSize: 14,
+      fontWeight: '600',
+      color: colors.primary,
+    },
+    detailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 10,
+    },
     detailText: { fontSize: 13, color: colors.subText },
     seatText: { fontWeight: '700', color: colors.text },
     footerRow: {
@@ -198,9 +324,41 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       alignItems: 'center',
     },
-    iconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center', marginBottom: 18 },
-    emptyTitle: { fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    emptyText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.subText, textAlign: 'center' },
-    exploreButton: { marginTop: 24, minHeight: 48, paddingHorizontal: 20, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
-    exploreButtonText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
+    iconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 18,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    emptyText: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.subText,
+      textAlign: 'center',
+    },
+    exploreButton: {
+      marginTop: 24,
+      minHeight: 48,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    exploreButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.onPrimary,
+    },
   });

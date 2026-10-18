@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import ScreenHeader from '../components/ScreenHeader';
+import QRCode from 'react-native-qrcode-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
@@ -23,7 +24,10 @@ type BookingTab = 'Upcoming' | 'Completed' | 'Cancelled';
 
 const tabs: BookingTab[] = ['Upcoming', 'Completed', 'Cancelled'];
 
-const emptyStateContent: Record<BookingTab, { icon: string; title: string; description: string }> = {
+const emptyStateContent: Record<
+  BookingTab,
+  { icon: string; title: string; description: string }
+> = {
   Upcoming: {
     icon: 'book-outline',
     title: 'No upcoming bookings',
@@ -46,7 +50,11 @@ function bucketFor(booking: Booking): BookingTab {
     return 'Cancelled';
   }
   const today = new Date().toISOString().slice(0, 10);
-  if (booking.status === 'completed' || booking.booking_date < today) {
+  if (
+    booking.status === 'completed' ||
+    booking.status === 'expired' ||
+    (booking.kind !== 'flex' && booking.booking_date < today)
+  ) {
     return 'Completed';
   }
   return 'Upcoming';
@@ -83,24 +91,30 @@ export default function BookingsScreen() {
   );
 
   const handleCancel = (booking: Booking) => {
-    Alert.alert('Cancel booking', 'Are you sure you want to cancel this booking?', [
-      { text: 'No', style: 'cancel' },
-      {
-        text: 'Yes, Cancel',
-        style: 'destructive',
-        onPress: async () => {
-          try {
-            await cancelBooking(booking.id);
-            loadBookings();
-          } catch (error: any) {
-            Alert.alert('Could not cancel', error.message);
-          }
+    Alert.alert(
+      'Cancel booking',
+      'Are you sure you want to cancel this booking?',
+      [
+        { text: 'No', style: 'cancel' },
+        {
+          text: 'Yes, Cancel',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              await cancelBooking(booking.id);
+              loadBookings();
+            } catch (error: any) {
+              Alert.alert('Could not cancel', error.message);
+            }
+          },
         },
-      },
-    ]);
+      ],
+    );
   };
 
-  const visibleBookings = bookings.filter(booking => bucketFor(booking) === activeTab);
+  const visibleBookings = bookings.filter(
+    booking => bucketFor(booking) === activeTab,
+  );
   const emptyState = emptyStateContent[activeTab];
 
   return (
@@ -111,12 +125,18 @@ export default function BookingsScreen() {
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         refreshControl={
-          <RefreshControl refreshing={isLoading} onRefresh={loadBookings} tintColor={colors.primary} />
+          <RefreshControl
+            refreshing={isLoading}
+            onRefresh={loadBookings}
+            tintColor={colors.primary}
+          />
         }
       >
         <View style={styles.header}>
           <Text style={styles.title}>My Bookings</Text>
-          <Text style={styles.subtitle}>Manage your library sessions and bookings.</Text>
+          <Text style={styles.subtitle}>
+            Manage your library sessions and bookings.
+          </Text>
         </View>
 
         <View style={styles.tabRow}>
@@ -129,14 +149,20 @@ export default function BookingsScreen() {
                 activeOpacity={0.7}
                 onPress={() => setActiveTab(tab)}
               >
-                <Text style={isActive ? styles.activeTabText : styles.tabText}>{tab}</Text>
+                <Text style={isActive ? styles.activeTabText : styles.tabText}>
+                  {tab}
+                </Text>
               </TouchableOpacity>
             );
           })}
         </View>
 
         {isLoading ? (
-          <ActivityIndicator size="large" color={colors.primary} style={styles.loader} />
+          <ActivityIndicator
+            size="large"
+            color={colors.primary}
+            style={styles.loader}
+          />
         ) : visibleBookings.length > 0 ? (
           visibleBookings.map(booking => (
             <View key={booking.id} style={styles.bookingCard}>
@@ -144,25 +170,39 @@ export default function BookingsScreen() {
                 <Text style={styles.bookingLibraryName} numberOfLines={1}>
                   {booking.library_name}
                 </Text>
-                <Text style={styles.bookingAmount}>₹{booking.total_amount}.00</Text>
+                <Text style={styles.bookingAmount}>
+                  ₹{booking.total_amount}.00
+                </Text>
               </View>
 
               <View style={styles.bookingDetailRow}>
-                <Icon name="calendar-outline" size={13} color={colors.subText} />
-                <Text style={styles.bookingDetailText}>{booking.date_label}</Text>
+                <Icon
+                  name="calendar-outline"
+                  size={13}
+                  color={colors.subText}
+                />
+                <Text style={styles.bookingDetailText}>
+                  {booking.date_label}
+                </Text>
               </View>
               <View style={styles.bookingDetailRow}>
                 <Icon name="time-outline" size={13} color={colors.subText} />
-                <Text style={styles.bookingDetailText}>{booking.time_label}</Text>
+                <Text style={styles.bookingDetailText}>
+                  {booking.time_label}
+                </Text>
               </View>
               <View style={styles.bookingDetailRow}>
                 <Icon name="body-outline" size={13} color={colors.subText} />
-                <Text style={styles.bookingDetailText}>{booking.seat_label}</Text>
+                <Text style={styles.bookingDetailText}>
+                  {booking.seat_label}
+                </Text>
               </View>
               {booking.seat_number ? (
                 <View style={styles.bookingDetailRow}>
                   <Icon name="pin-outline" size={13} color={colors.primary} />
-                  <Text style={[styles.bookingDetailText, styles.bookingSeatText]}>
+                  <Text
+                    style={[styles.bookingDetailText, styles.bookingSeatText]}
+                  >
                     Seat {booking.seat_number}
                   </Text>
                 </View>
@@ -176,6 +216,33 @@ export default function BookingsScreen() {
                   </TouchableOpacity>
                 )}
               </View>
+              {booking.payment_status && (
+                <Text style={styles.bookingDetailText}>
+                  Payment:{' '}
+                  {booking.payment_status.toLowerCase().replace(/_/g, ' ')}
+                </Text>
+              )}
+              {booking.status === 'confirmed' &&
+                booking.payment_status === 'CAPTURED' &&
+                booking.vendor_id && (
+                  <TouchableOpacity
+                    onPress={() =>
+                      navigation.navigate('Extension', {
+                        targetId: booking.id,
+                        vendorId: booking.vendor_id,
+                        libraryName: booking.library_name,
+                      })
+                    }
+                  >
+                    <Text style={styles.cancelLink}>Extend stay</Text>
+                  </TouchableOpacity>
+                )}
+              {booking.status === 'confirmed' &&
+                booking.payment_status === 'CAPTURED' && (
+                  <View style={styles.qrWrap}>
+                    <QRCode value={booking.booking_code} size={110} />
+                  </View>
+                )}
             </View>
           ))
         ) : (
@@ -186,7 +253,11 @@ export default function BookingsScreen() {
             <Text style={styles.emptyTitle}>{emptyState.title}</Text>
             <Text style={styles.emptyText}>{emptyState.description}</Text>
 
-            <TouchableOpacity style={styles.exploreButton} activeOpacity={0.8} onPress={() => navigation.navigate('Explore')}>
+            <TouchableOpacity
+              style={styles.exploreButton}
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('Explore')}
+            >
               <Text style={styles.exploreButtonText}>Explore Libraries</Text>
             </TouchableOpacity>
           </View>
@@ -198,14 +269,47 @@ export default function BookingsScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    qrWrap: {
+      marginTop: 12,
+      padding: 12,
+      backgroundColor: '#fff',
+      alignSelf: 'flex-start',
+    },
+    cancelAction: { color: colors.danger, marginVertical: 8 },
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+    },
     header: { marginTop: 8 },
-    title: { fontSize: 30, lineHeight: 36, fontWeight: '700', color: colors.text },
-    subtitle: { marginTop: 8, fontSize: 16, lineHeight: 24, color: colors.subText },
-    tabRow: { flexDirection: 'row', marginTop: 28, padding: 4, borderRadius: 14, backgroundColor: colors.surfaceAlt },
-    tab: { flex: 1, minHeight: 42, borderRadius: 10, justifyContent: 'center', alignItems: 'center' },
+    title: {
+      fontSize: 30,
+      lineHeight: 36,
+      fontWeight: '700',
+      color: colors.text,
+    },
+    subtitle: {
+      marginTop: 8,
+      fontSize: 16,
+      lineHeight: 24,
+      color: colors.subText,
+    },
+    tabRow: {
+      flexDirection: 'row',
+      marginTop: 28,
+      padding: 4,
+      borderRadius: 14,
+      backgroundColor: colors.surfaceAlt,
+    },
+    tab: {
+      flex: 1,
+      minHeight: 42,
+      borderRadius: 10,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     activeTab: { backgroundColor: colors.surface },
     activeTabText: { fontSize: 13, fontWeight: '700', color: colors.primary },
     tabText: { fontSize: 13, fontWeight: '600', color: colors.subText },
@@ -218,10 +322,25 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    bookingCardHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
-    bookingLibraryName: { flex: 1, fontSize: 16, fontWeight: '700', color: colors.text, marginRight: 8 },
+    bookingCardHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+    },
+    bookingLibraryName: {
+      flex: 1,
+      fontSize: 16,
+      fontWeight: '700',
+      color: colors.text,
+      marginRight: 8,
+    },
     bookingAmount: { fontSize: 14, fontWeight: '800', color: colors.primary },
-    bookingDetailRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 8 },
+    bookingDetailRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 8,
+    },
     bookingDetailText: { fontSize: 13, color: colors.subText },
     bookingSeatText: { fontWeight: '700', color: colors.text },
     bookingFooterRow: {
@@ -233,7 +352,12 @@ const createStyles = (colors: ThemeColors) =>
       borderTopWidth: 1,
       borderTopColor: colors.border,
     },
-    bookingCode: { fontSize: 11, fontWeight: '700', color: colors.placeholder, letterSpacing: 0.3 },
+    bookingCode: {
+      fontSize: 11,
+      fontWeight: '700',
+      color: colors.placeholder,
+      letterSpacing: 0.3,
+    },
     cancelLink: { fontSize: 13, fontWeight: '700', color: colors.danger },
     emptyCard: {
       marginTop: 28,
@@ -245,9 +369,41 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       alignItems: 'center',
     },
-    iconCircle: { width: 72, height: 72, borderRadius: 36, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center', marginBottom: 18 },
-    emptyTitle: { fontSize: 20, lineHeight: 26, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    emptyText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.subText, textAlign: 'center' },
-    exploreButton: { marginTop: 24, minHeight: 48, paddingHorizontal: 20, borderRadius: 12, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
-    exploreButtonText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
+    iconCircle: {
+      width: 72,
+      height: 72,
+      borderRadius: 36,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+      marginBottom: 18,
+    },
+    emptyTitle: {
+      fontSize: 20,
+      lineHeight: 26,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    emptyText: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.subText,
+      textAlign: 'center',
+    },
+    exploreButton: {
+      marginTop: 24,
+      minHeight: 48,
+      paddingHorizontal: 20,
+      borderRadius: 12,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    exploreButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.onPrimary,
+    },
   });

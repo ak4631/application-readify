@@ -15,8 +15,16 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useStyles } from '../hooks/useStyles';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
-import { requestLocationPermission, getCurrentPosition, saveUserLocation } from '../lib/location';
-import { searchAddress, reverseGeocode, type GeocodeResult } from '../lib/geocoding';
+import {
+  requestLocationPermission,
+  getCurrentPosition,
+  saveUserLocation,
+} from '../lib/location';
+import {
+  searchAddress,
+  reverseGeocode,
+  type GeocodeResult,
+} from '../lib/geocoding';
 import type { ThemeColors } from '../constants/colors';
 
 export const LOCATION_PROMPT_SHOWN_KEY = 'readify:locationPromptShown';
@@ -59,13 +67,18 @@ export default function LocationPermissionScreen() {
     try {
       const status = await requestLocationPermission();
       if (status !== 'granted') {
-        setErrorMessage('Location permission was denied. You can set your location manually instead.');
+        setErrorMessage(
+          'Location permission was denied. You can set your location manually instead.',
+        );
         setShowManualSearch(true);
         return;
       }
 
       const position = await getCurrentPosition();
-      const address = await reverseGeocode(position.latitude, position.longitude).catch(() => null);
+      const address = await reverseGeocode(
+        position.latitude,
+        position.longitude,
+      ).catch(() => null);
 
       await saveUserLocation(session.user.id, {
         ...position,
@@ -76,7 +89,9 @@ export default function LocationPermissionScreen() {
 
       await finish();
     } catch {
-      setErrorMessage('Could not get your current location. Please try again or set it manually.');
+      setErrorMessage(
+        'Could not get your current location. Please try again or set it manually.',
+      );
       setShowManualSearch(true);
     } finally {
       setIsLocating(false);
@@ -129,8 +144,8 @@ export default function LocationPermissionScreen() {
 
         <Text style={styles.title}>Find spaces near you</Text>
         <Text style={styles.subtitle}>
-          Readify uses your location to show nearby libraries, gyms, exam hubs and co-working spaces,
-          along with distance from where you are.
+          Vriddhora uses your location to show nearby libraries, gyms, exam hubs
+          and co-working spaces, along with distance from where you are.
         </Text>
 
         {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
@@ -146,7 +161,9 @@ export default function LocationPermissionScreen() {
           ) : (
             <>
               <Icon name="locate" size={18} color={colors.onPrimary} />
-              <Text style={styles.primaryButtonText}>Use my current location</Text>
+              <Text style={styles.primaryButtonText}>
+                Use my current location
+              </Text>
             </>
           )}
         </TouchableOpacity>
@@ -156,13 +173,20 @@ export default function LocationPermissionScreen() {
           activeOpacity={0.85}
           onPress={() => setShowManualSearch(v => !v)}
         >
-          <Text style={styles.secondaryButtonText}>Enter location manually</Text>
+          <Text style={styles.secondaryButtonText}>
+            Enter location manually
+          </Text>
         </TouchableOpacity>
 
         {showManualSearch && (
           <View style={styles.searchSection}>
             <View style={styles.searchInputRow}>
-              <Icon name="search" size={18} color={colors.subText} style={styles.searchIcon} />
+              <Icon
+                name="search"
+                size={18}
+                color={colors.subText}
+                style={styles.searchIcon}
+              />
               <TextInput
                 style={styles.searchInput}
                 value={query}
@@ -170,7 +194,9 @@ export default function LocationPermissionScreen() {
                 placeholder="Search for your city or area"
                 placeholderTextColor={colors.placeholder}
               />
-              {isSearching && <ActivityIndicator size="small" color={colors.primary} />}
+              {isSearching && (
+                <ActivityIndicator size="small" color={colors.primary} />
+              )}
             </View>
 
             {results.map((result, index) => (
@@ -180,7 +206,11 @@ export default function LocationPermissionScreen() {
                 activeOpacity={0.7}
                 onPress={() => handleSelectResult(result)}
               >
-                <Icon name="location-outline" size={16} color={colors.subText} />
+                <Icon
+                  name="location-outline"
+                  size={16}
+                  color={colors.subText}
+                />
                 <Text style={styles.resultText} numberOfLines={2}>
                   {result.label}
                 </Text>
@@ -189,7 +219,11 @@ export default function LocationPermissionScreen() {
           </View>
         )}
 
-        <TouchableOpacity style={styles.skipButton} activeOpacity={0.7} onPress={handleSkip}>
+        <TouchableOpacity
+          style={styles.skipButton}
+          activeOpacity={0.7}
+          onPress={handleSkip}
+        >
           <Text style={styles.skipButtonText}>Skip for now</Text>
         </TouchableOpacity>
       </View>
@@ -200,7 +234,12 @@ export default function LocationPermissionScreen() {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
-    content: { flex: 1, paddingHorizontal: 24, paddingTop: 48, alignItems: 'center' },
+    content: {
+      flex: 1,
+      paddingHorizontal: 24,
+      paddingTop: 48,
+      alignItems: 'center',
+    },
     iconCircle: {
       width: 72,
       height: 72,
@@ -210,7 +249,12 @@ const createStyles = (colors: ThemeColors) =>
       alignItems: 'center',
       marginBottom: 20,
     },
-    title: { fontSize: 24, fontWeight: '800', color: colors.text, textAlign: 'center' },
+    title: {
+      fontSize: 24,
+      fontWeight: '800',
+      color: colors.text,
+      textAlign: 'center',
+    },
     subtitle: {
       marginTop: 12,
       fontSize: 14,
@@ -236,7 +280,11 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       gap: 8,
     },
-    primaryButtonText: { fontSize: 15, fontWeight: '700', color: colors.onPrimary },
+    primaryButtonText: {
+      fontSize: 15,
+      fontWeight: '700',
+      color: colors.onPrimary,
+    },
     secondaryButton: {
       width: '100%',
       minHeight: 48,
@@ -247,7 +295,11 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    secondaryButtonText: { fontSize: 14, fontWeight: '700', color: colors.text },
+    secondaryButtonText: {
+      fontSize: 14,
+      fontWeight: '700',
+      color: colors.text,
+    },
     searchSection: { width: '100%', marginTop: 16 },
     searchInputRow: {
       flexDirection: 'row',

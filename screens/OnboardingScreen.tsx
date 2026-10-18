@@ -21,16 +21,18 @@ const SLIDES = [
   {
     image: require('../assets/images/illustrations/discover-library.png'),
     title: 'Discover Libraries Around You',
-    subtitle: 'Find public, private and community libraries near your location.',
+    subtitle:
+      'Find public, private and community libraries near your location.',
   },
   {
     image: require('../assets/images/illustrations/rent-books.png'),
     title: 'Rent Books Easily',
-    subtitle: 'Borrow books from nearby libraries and return them effortlessly.',
+    subtitle:
+      'Borrow books from nearby libraries and return them effortlessly.',
   },
   {
     image: require('../assets/images/illustrations/read-anywhere.png'),
-    title: 'Readify India',
+    title: 'Vriddhora',
     subtitle: 'Building the Future of Libraries',
   },
 ];
@@ -48,7 +50,10 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
 
   const nextPage = () => {
     if (currentPage < SLIDES.length - 1) {
-      scrollRef.current?.scrollTo({ x: width * (currentPage + 1), animated: true });
+      scrollRef.current?.scrollTo({
+        x: width * (currentPage + 1),
+        animated: true,
+      });
     } else {
       goToWelcome();
     }
@@ -70,7 +75,11 @@ export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
       >
         {SLIDES.map((item, index) => (
           <View key={index} style={styles.page}>
-            <Image source={item.image} style={styles.image} resizeMode="contain" />
+            <Image
+              source={item.image}
+              style={styles.image}
+              resizeMode="contain"
+            />
             <Text style={styles.title}>{item.title}</Text>
             <Text style={styles.subtitle}>{item.subtitle}</Text>
           </View>

@@ -20,7 +20,11 @@ import type { ThemeColors } from '../constants/colors';
 
 const MENU_ITEMS = [
   { icon: 'book-outline', label: 'My Bookings', route: 'Bookings' },
-  { icon: 'diamond-outline', label: 'My Subscriptions', route: 'MySubscriptions' },
+  {
+    icon: 'diamond-outline',
+    label: 'My Subscriptions',
+    route: 'MySubscriptions',
+  },
   { icon: 'heart-outline', label: 'Saved Libraries', route: null },
   { icon: 'help-circle-outline', label: 'Help & Support', route: null },
 ] as const;
@@ -31,7 +35,8 @@ export default function ProfileScreen() {
   const { mode, colors, toggleTheme } = useTheme();
   const styles = useStyles(createStyles);
 
-  const name = profile?.full_name || session?.user.email?.split('@')[0] || 'Reader';
+  const name =
+    profile?.full_name || session?.user.email?.split('@')[0] || 'Reader';
   const email = session?.user.email ?? '';
   const avatarInitial = name.charAt(0).toUpperCase();
 
@@ -49,8 +54,11 @@ export default function ProfileScreen() {
   return (
     <SafeAreaView style={styles.container}>
       <ScreenHeader title="My Profile" />
-      <ScrollView style={styles.content} contentContainerStyle={styles.contentContainer} showsVerticalScrollIndicator={false}>
-
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.contentContainer}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{avatarInitial}</Text>
@@ -63,7 +71,12 @@ export default function ProfileScreen() {
 
         <View style={styles.menuCard}>
           <View style={styles.menuItem}>
-            <Icon name="moon-outline" size={19} color={colors.primary} style={styles.menuIcon} />
+            <Icon
+              name="moon-outline"
+              size={19}
+              color={colors.primary}
+              style={styles.menuIcon}
+            />
             <Text style={styles.menuText}>Dark Mode</Text>
             <Switch
               value={mode === 'dark'}
@@ -80,23 +93,43 @@ export default function ProfileScreen() {
               <TouchableOpacity
                 style={styles.menuItem}
                 activeOpacity={0.7}
-                onPress={item.route ? () => navigation.navigate(item.route) : undefined}
+                onPress={
+                  item.route ? () => navigation.navigate(item.route) : undefined
+                }
               >
-                <Icon name={item.icon} size={19} color={colors.primary} style={styles.menuIcon} />
+                <Icon
+                  name={item.icon}
+                  size={19}
+                  color={colors.primary}
+                  style={styles.menuIcon}
+                />
                 <Text style={styles.menuText}>{item.label}</Text>
-                <Icon name="chevron-forward" size={20} color={colors.placeholder} />
+                <Icon
+                  name="chevron-forward"
+                  size={20}
+                  color={colors.placeholder}
+                />
               </TouchableOpacity>
               {index < MENU_ITEMS.length - 1 && <View style={styles.divider} />}
             </React.Fragment>
           ))}
         </View>
 
-        <TouchableOpacity style={styles.logoutButton} activeOpacity={0.7} onPress={handleLogout}>
-          <Icon name="log-out-outline" size={17} color={colors.danger} style={styles.logoutIcon} />
+        <TouchableOpacity
+          style={styles.logoutButton}
+          activeOpacity={0.7}
+          onPress={handleLogout}
+        >
+          <Icon
+            name="log-out-outline"
+            size={17}
+            color={colors.danger}
+            style={styles.logoutIcon}
+          />
           <Text style={styles.logoutText}>Log Out</Text>
         </TouchableOpacity>
 
-        <Text style={styles.version}>Readify India · Version 1.0.0</Text>
+        <Text style={styles.version}>Vriddhora · Version 1.0.0</Text>
       </ScrollView>
     </SafeAreaView>
   );
@@ -106,8 +139,18 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
-    title: { marginTop: 8, fontSize: 30, lineHeight: 36, fontWeight: '700', color: colors.text },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+    },
+    title: {
+      marginTop: 8,
+      fontSize: 30,
+      lineHeight: 36,
+      fontWeight: '700',
+      color: colors.text,
+    },
     profileCard: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -118,15 +161,35 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    avatar: { width: 58, height: 58, borderRadius: 29, backgroundColor: colors.primary, justifyContent: 'center', alignItems: 'center' },
+    avatar: {
+      width: 58,
+      height: 58,
+      borderRadius: 29,
+      backgroundColor: colors.primary,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     avatarText: { fontSize: 22, fontWeight: '700', color: colors.onPrimary },
     profileInfo: { flex: 1, marginLeft: 14 },
     name: { fontSize: 18, fontWeight: '700', color: colors.text },
     email: { marginTop: 4, fontSize: 13, color: colors.subText },
-    menuCard: { marginTop: 20, paddingHorizontal: 16, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border },
+    menuCard: {
+      marginTop: 20,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+      backgroundColor: colors.surface,
+      borderWidth: 1,
+      borderColor: colors.border,
+    },
     menuItem: { minHeight: 58, flexDirection: 'row', alignItems: 'center' },
     menuIcon: { width: 32, textAlign: 'center' },
-    menuText: { flex: 1, marginLeft: 10, fontSize: 15, fontWeight: '600', color: colors.text },
+    menuText: {
+      flex: 1,
+      marginLeft: 10,
+      fontSize: 15,
+      fontWeight: '600',
+      color: colors.text,
+    },
     divider: { height: 1, backgroundColor: colors.surfaceAlt },
     logoutButton: {
       height: 50,
@@ -140,5 +203,10 @@ const createStyles = (colors: ThemeColors) =>
     },
     logoutIcon: { marginRight: 8 },
     logoutText: { fontSize: 15, fontWeight: '700', color: colors.danger },
-    version: { marginTop: 20, fontSize: 12, color: colors.placeholder, textAlign: 'center' },
+    version: {
+      marginTop: 20,
+      fontSize: 12,
+      color: colors.placeholder,
+      textAlign: 'center',
+    },
   });

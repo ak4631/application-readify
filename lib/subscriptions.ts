@@ -1,4 +1,5 @@
 import { supabase } from './supabase';
+import { cancelPurchase } from './checkout';
 
 export type Subscription = {
   id: string;
@@ -9,7 +10,7 @@ export type Subscription = {
   start_date: string;
   end_date: string;
   total_amount: number;
-  status: 'active' | 'expired' | 'cancelled';
+  status: 'pending' | 'active' | 'expired' | 'cancelled';
   created_at: string;
   slot_start?: string | null;
   slot_hours?: number | null;
@@ -40,40 +41,17 @@ export async function fetchSubscriptions(): Promise<Subscription[]> {
   })) as Subscription[];
 }
 
-export async function fetchActiveSubscription(vendorId: string): Promise<Subscription | null> {
-  const subscriptions = await fetchSubscriptions();
-  return subscriptions.find(s => s.vendor_id === vendorId && s.status === 'active') ?? null;
-}
-
-export async function createSubscription(
+export async function fetchActiveSubscription(
   vendorId: string,
-  planId: string,
-  startTime?: string,
-  // Only for a flexible plan -- the number of days (1-14) the customer chose.
-  days?: number,
-) {
-  const { data, error } = await supabase
-    .rpc('create_customer_subscription', {
-      p_vendor_id: vendorId,
-      p_plan_id: planId,
-      p_start_time: startTime ?? null,
-      p_days: days ?? null,
-    })
-    .single();
-
-  if (error) {
-    throw error;
-  }
-
-  return data as { id: string; start_date: string; end_date: string; seat_number: string | null };
+): Promise<Subscription | null> {
+  const subscriptions = await fetchSubscriptions();
+  return (
+    subscriptions.find(
+      s => s.vendor_id === vendorId && s.status === 'active',
+    ) ?? null
+  );
 }
 
 export async function cancelSubscription(subscriptionId: string) {
-  const { error } = await supabase.rpc('cancel_customer_subscription', {
-    p_subscription_id: subscriptionId,
-  });
-
-  if (error) {
-    throw error;
-  }
+  await cancelPurchase(subscriptionId);
 }

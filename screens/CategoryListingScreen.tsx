@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import {
   ActivityIndicator,
   Image,
@@ -47,13 +48,15 @@ export default function CategoryListingScreen() {
   const styles = useStyles(createStyles);
   const { session } = useAuth();
   const { categoryId, categoryName } = route.params;
+  const services = useServiceCatalog();
 
   const [listings, setListings] = useState<Listing[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{ latitude: number; longitude: number } | null>(
-    null,
-  );
+  const [userLocation, setUserLocation] = useState<{
+    latitude: number;
+    longitude: number;
+  } | null>(null);
 
   useEffect(() => {
     if (!session) {
@@ -62,7 +65,10 @@ export default function CategoryListingScreen() {
     fetchSavedLocation(session.user.id)
       .then(saved => {
         if (saved) {
-          setUserLocation({ latitude: saved.latitude, longitude: saved.longitude });
+          setUserLocation({
+            latitude: saved.latitude,
+            longitude: saved.longitude,
+          });
         }
       })
       .catch(() => {});
@@ -161,17 +167,42 @@ export default function CategoryListingScreen() {
   }, [userLocation, categoryId]);
 
   const openLibrary = (listing: Listing) =>
-    navigation.navigate('LibraryDetails', { libraryId: listing.id, libraryName: listing.name });
+    navigation.navigate('LibraryDetails', {
+      libraryId: listing.id,
+      libraryName: listing.name,
+    });
 
   const getLocation = (listing: Listing) =>
     listing.distance_km != null
       ? `${listing.distance_km.toFixed(1)} km away`
-      : [listing.locality, listing.city, listing.state].filter(Boolean).join(', ');
+      : [listing.locality, listing.city, listing.state]
+          .filter(Boolean)
+          .join(', ');
 
   const getAddress = (listing: Listing) =>
-    [listing.address_line_1, listing.address_line_2, listing.locality, listing.city, listing.state, listing.postal_code]
+    [
+      listing.address_line_1,
+      listing.address_line_2,
+      listing.locality,
+      listing.city,
+      listing.state,
+      listing.postal_code,
+    ]
       .filter(Boolean)
       .join(', ');
+
+  if (!services.loading && !services.enabled(categoryId))
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScreenHeader title={categoryName} />
+        <View style={styles.comingSoon}>
+          <Text style={styles.stateTitle}>Coming Soon in Your Area</Text>
+          <Text style={styles.stateText}>
+            We are preparing this service. Library bookings are available now.
+          </Text>
+        </View>
+      </SafeAreaView>
+    );
 
   return (
     <SafeAreaView style={styles.container}>
@@ -184,11 +215,17 @@ export default function CategoryListingScreen() {
         {isLoading ? (
           <View style={styles.stateCard}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.stateTitle}>Finding {categoryName.toLowerCase()}</Text>
+            <Text style={styles.stateTitle}>
+              Finding {categoryName.toLowerCase()}
+            </Text>
           </View>
         ) : errorMessage ? (
           <View style={styles.stateCard}>
-            <Icon name="alert-circle-outline" size={30} color={colors.primary} />
+            <Icon
+              name="alert-circle-outline"
+              size={30}
+              color={colors.primary}
+            />
             <Text style={styles.stateTitle}>Something went wrong</Text>
             <Text style={styles.stateText}>{errorMessage}</Text>
           </View>
@@ -205,7 +242,9 @@ export default function CategoryListingScreen() {
                 onPress={() => openLibrary(listing)}
               >
                 <Image
-                  source={{ uri: listing.image_url ?? getLibraryImage(listing.id) }}
+                  source={{
+                    uri: listing.image_url ?? getLibraryImage(listing.id),
+                  }}
                   style={styles.imagePlaceholder}
                   resizeMode="cover"
                 />
@@ -214,11 +253,19 @@ export default function CategoryListingScreen() {
                     <Text style={styles.name} numberOfLines={2}>
                       {listing.name}
                     </Text>
-                    <Icon name="chevron-forward" size={22} color={colors.primary} />
+                    <Icon
+                      name="chevron-forward"
+                      size={22}
+                      color={colors.primary}
+                    />
                   </View>
                   {location.length > 0 && (
                     <View style={styles.locationRow}>
-                      <Icon name="location-outline" size={14} color={colors.subText} />
+                      <Icon
+                        name="location-outline"
+                        size={14}
+                        color={colors.subText}
+                      />
                       <Text style={styles.location} numberOfLines={2}>
                         {location}
                       </Text>
@@ -230,8 +277,14 @@ export default function CategoryListingScreen() {
                     </Text>
                   )}
                   <View style={styles.viewDetailsRow}>
-                    <Text style={styles.viewDetailsText}>View library details</Text>
-                    <Icon name="arrow-forward" size={14} color={colors.primary} />
+                    <Text style={styles.viewDetailsText}>
+                      View library details
+                    </Text>
+                    <Icon
+                      name="arrow-forward"
+                      size={14}
+                      color={colors.primary}
+                    />
                   </View>
                 </View>
               </TouchableOpacity>
@@ -240,8 +293,12 @@ export default function CategoryListingScreen() {
         ) : (
           <View style={styles.stateCard}>
             <Icon name="search" size={28} color={colors.primary} />
-            <Text style={styles.stateTitle}>No {categoryName.toLowerCase()} found</Text>
-            <Text style={styles.stateText}>Check back soon, or explore another category.</Text>
+            <Text style={styles.stateTitle}>
+              No {categoryName.toLowerCase()} found
+            </Text>
+            <Text style={styles.stateText}>
+              Check back soon, or explore another category.
+            </Text>
           </View>
         )}
       </ScrollView>
@@ -251,9 +308,14 @@ export default function CategoryListingScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    comingSoon: { padding: 24 },
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
-    contentContainer: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 32 },
+    contentContainer: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 32,
+    },
     card: {
       marginBottom: 16,
       overflow: 'hidden',
@@ -262,14 +324,39 @@ const createStyles = (colors: ThemeColors) =>
       borderWidth: 1,
       borderColor: colors.border,
     },
-    imagePlaceholder: { height: 130, backgroundColor: colors.primaryLight, justifyContent: 'center', alignItems: 'center' },
+    imagePlaceholder: {
+      height: 130,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
     info: { padding: 16 },
-    topRow: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', gap: 12 },
+    topRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
     name: { flex: 1, fontSize: 18, fontWeight: '700', color: colors.text },
-    locationRow: { flexDirection: 'row', alignItems: 'flex-start', gap: 5, marginTop: 12 },
+    locationRow: {
+      flexDirection: 'row',
+      alignItems: 'flex-start',
+      gap: 5,
+      marginTop: 12,
+    },
     location: { flex: 1, fontSize: 14, lineHeight: 20, color: colors.text },
-    address: { marginTop: 6, fontSize: 13, lineHeight: 19, color: colors.subText },
-    viewDetailsRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: 14 },
+    address: {
+      marginTop: 6,
+      fontSize: 13,
+      lineHeight: 19,
+      color: colors.subText,
+    },
+    viewDetailsRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginTop: 14,
+    },
     viewDetailsText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     stateCard: {
       marginTop: 24,
@@ -281,6 +368,18 @@ const createStyles = (colors: ThemeColors) =>
       borderColor: colors.border,
       alignItems: 'center',
     },
-    stateTitle: { marginTop: 16, fontSize: 19, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    stateText: { marginTop: 8, fontSize: 14, lineHeight: 21, color: colors.subText, textAlign: 'center' },
+    stateTitle: {
+      marginTop: 16,
+      fontSize: 19,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    stateText: {
+      marginTop: 8,
+      fontSize: 14,
+      lineHeight: 21,
+      color: colors.subText,
+      textAlign: 'center',
+    },
   });

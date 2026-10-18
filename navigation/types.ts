@@ -1,21 +1,26 @@
 export type PaymentParams = {
+  kind: 'flex' | 'subscription' | 'extension';
   libraryId: string;
   libraryName: string;
-  selectedDate: string;
-  selectedDateLabel: string;
-  selectedTime: string;
+  selectedDate?: string;
+  selectedDateLabel?: string;
+  selectedTime?: string;
   selectedTimeLabel: string;
-  selectedSeat: string;
-  selectedSeatLabel: string;
-  totalAmount: number;
+  startTime?: string;
+  days?: number;
+  targetId?: string;
+  hours?: number;
+  planId: string;
+  planName: string;
 };
 
 export type BookingConfirmationParams = {
-  libraryName: string;
   bookingCode: string;
+  planName: string;
+  seatNumber: string | null;
+  libraryName: string;
   selectedDateLabel: string;
   selectedTimeLabel: string;
-  selectedSeatLabel: string;
   totalAmount: number;
 };
 
@@ -44,6 +49,7 @@ export type RootStackParamList = {
   Notifications: undefined;
   LibraryDetails: { libraryId: string; libraryName: string };
   Booking: { libraryId: string; libraryName: string };
+  Extension: { targetId: string; vendorId: string; libraryName: string };
   Payment: PaymentParams;
   BookingConfirmation: BookingConfirmationParams;
 };

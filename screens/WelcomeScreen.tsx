@@ -1,17 +1,15 @@
 import React from 'react';
-import {
-  StyleSheet,
-  View,
-  Text,
-  Image,
-  TouchableOpacity,
-} from 'react-native';
+import { StyleSheet, View, Text, TouchableOpacity } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation } from '@react-navigation/native';
 import { useStyles } from '../hooks/useStyles';
 import type { ThemeColors } from '../constants/colors';
 
-export default function WelcomeScreen({ onContinue }: { onContinue: () => void }) {
+export default function WelcomeScreen({
+  onContinue,
+}: {
+  onContinue: () => void;
+}) {
   const navigation = useNavigation<any>();
   const styles = useStyles(createStyles);
 
@@ -23,16 +21,13 @@ export default function WelcomeScreen({ onContinue }: { onContinue: () => void }
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Image
-          source={require('../assets/images/logo.png')}
-          style={styles.logo}
-          resizeMode="contain"
-        />
+        <Text style={styles.brandMark}>V</Text>
 
-        <Text style={styles.title}>Welcome to Readify India</Text>
+        <Text style={styles.title}>Welcome to Vriddhora</Text>
 
         <Text style={styles.subtitle}>
-          Discover libraries, rent books and{'\n'}build your reading journey.
+          Discover libraries, reserve a seat and{'\n'}build your reading
+          journey.
         </Text>
 
         <TouchableOpacity
@@ -40,7 +35,7 @@ export default function WelcomeScreen({ onContinue }: { onContinue: () => void }
           activeOpacity={0.85}
           onPress={handleContinue}
         >
-          <Text style={styles.continueButtonText}>Continue to Readify India</Text>
+          <Text style={styles.continueButtonText}>Continue to Vriddhora</Text>
         </TouchableOpacity>
 
         <Text style={styles.footerText}>Your reading journey starts here.</Text>
@@ -51,6 +46,12 @@ export default function WelcomeScreen({ onContinue }: { onContinue: () => void }
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    brandMark: {
+      fontSize: 100,
+      fontWeight: '800',
+      color: colors.primary,
+      marginBottom: 24,
+    },
     container: {
       flex: 1,
       backgroundColor: colors.background,

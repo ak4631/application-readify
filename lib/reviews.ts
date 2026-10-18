@@ -7,12 +7,15 @@ export type Review = {
   review_text: string | null;
   user_name: string | null;
   created_at: string;
+  owner_reply: string | null;
 };
 
 export async function fetchReviews(vendorId: string): Promise<Review[]> {
   const { data, error } = await supabase
     .from('listing_reviews')
-    .select('id, vendor_id, rating, review_text, user_name, created_at')
+    .select(
+      'id, vendor_id, rating, review_text, user_name, created_at, owner_reply',
+    )
     .eq('vendor_id', vendorId);
 
   if (error) {
@@ -31,7 +34,8 @@ export async function submitReview(input: {
   const { error } = await supabase.rpc('create_customer_review', {
     p_vendor_id: input.vendorId,
     p_rating: input.rating,
-    p_review_text: input.reviewText.trim().length > 0 ? input.reviewText.trim() : null,
+    p_review_text:
+      input.reviewText.trim().length > 0 ? input.reviewText.trim() : null,
     p_booking_id: input.bookingId ?? null,
   });
 

@@ -1,10 +1,10 @@
+import BrandMark from '../components/BrandMark';
 import React, { useState } from 'react';
 import { useNavigation, useRoute } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import {
   View,
   Text,
-  Image,
   StyleSheet,
   TouchableOpacity,
   Alert,
@@ -21,7 +21,9 @@ import type { RootStackParamList } from '../navigation/types';
 
 export default function OtpVerificationScreen() {
   const navigation =
-    useNavigation<NativeStackNavigationProp<RootStackParamList, 'OtpVerification'>>();
+    useNavigation<
+      NativeStackNavigationProp<RootStackParamList, 'OtpVerification'>
+    >();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
   const route = useRoute<any>();
@@ -34,11 +36,17 @@ export default function OtpVerificationScreen() {
 
   const handleVerify = async () => {
     if (otp.trim().length !== 6) {
-      Alert.alert('Invalid code', 'Please enter the 6-digit code sent to your email.');
+      Alert.alert(
+        'Invalid code',
+        'Please enter the 6-digit code sent to your email.',
+      );
       return;
     }
     if (newPassword.length < 8) {
-      Alert.alert('Weak password', 'New password must contain at least 8 characters.');
+      Alert.alert(
+        'Weak password',
+        'New password must contain at least 8 characters.',
+      );
       return;
     }
 
@@ -55,7 +63,9 @@ export default function OtpVerificationScreen() {
       return;
     }
 
-    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
+    const { error: updateError } = await supabase.auth.updateUser({
+      password: newPassword,
+    });
     setLoading(false);
 
     if (updateError) {
@@ -63,7 +73,10 @@ export default function OtpVerificationScreen() {
       return;
     }
 
-    Alert.alert('Password updated', 'You are now logged in with your new password.');
+    Alert.alert(
+      'Password updated',
+      'You are now logged in with your new password.',
+    );
   };
 
   const handleResend = async () => {
@@ -74,14 +87,17 @@ export default function OtpVerificationScreen() {
     if (error) {
       Alert.alert('Could not resend code', error.message);
     } else {
-      Alert.alert('Code sent', 'A new verification code has been sent to your email.');
+      Alert.alert(
+        'Code sent',
+        'A new verification code has been sent to your email.',
+      );
     }
   };
 
   return (
     <SafeAreaView style={styles.container}>
       <View style={styles.content}>
-        <Image source={require('../assets/images/logo.png')} style={styles.logo} resizeMode="contain" />
+        <BrandMark style={styles.logo} />
 
         <Text style={styles.title}>Verify OTP</Text>
         <Text style={styles.subtitle}>
@@ -119,7 +135,10 @@ export default function OtpVerificationScreen() {
           )}
         </TouchableOpacity>
 
-        <Text style={styles.resendText} onPress={resending ? undefined : handleResend}>
+        <Text
+          style={styles.resendText}
+          onPress={resending ? undefined : handleResend}
+        >
           {resending ? 'Sending…' : "Didn't receive the code? Resend OTP"}
         </Text>
 
@@ -136,8 +155,19 @@ const createStyles = (colors: ThemeColors) =>
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1, justifyContent: 'center', paddingHorizontal: 24 },
     logo: { width: 90, height: 90, alignSelf: 'center', marginBottom: 32 },
-    title: { fontSize: 30, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    subtitle: { marginTop: 12, marginBottom: 40, fontSize: 16, color: colors.subText, textAlign: 'center' },
+    title: {
+      fontSize: 30,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    subtitle: {
+      marginTop: 12,
+      marginBottom: 40,
+      fontSize: 16,
+      color: colors.subText,
+      textAlign: 'center',
+    },
     verifyButton: {
       width: '100%',
       height: 56,
@@ -149,7 +179,16 @@ const createStyles = (colors: ThemeColors) =>
       marginBottom: 24,
     },
     buttonDisabled: { opacity: 0.6 },
-    verifyButtonText: { color: colors.onPrimary, fontSize: 17, fontWeight: '700' },
-    resendText: { textAlign: 'center', fontSize: 15, color: colors.secondary, marginBottom: 24 },
+    verifyButtonText: {
+      color: colors.onPrimary,
+      fontSize: 17,
+      fontWeight: '700',
+    },
+    resendText: {
+      textAlign: 'center',
+      fontSize: 15,
+      color: colors.secondary,
+      marginBottom: 24,
+    },
     backToLogin: { textAlign: 'center', fontSize: 15, color: colors.secondary },
   });

@@ -1,5 +1,9 @@
 import React, { useEffect, useState } from 'react';
-import { NavigationContainer, DefaultTheme, DarkTheme } from '@react-navigation/native';
+import {
+  NavigationContainer,
+  DefaultTheme,
+  DarkTheme,
+} from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { ActivityIndicator, View, Text, StyleSheet } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,6 +28,7 @@ import NotificationsScreen from '../screens/NotificationsScreen';
 import LibraryDetailsScreen from '../screens/LibraryDetailsScreen';
 import BookingScreen from '../screens/BookingScreen';
 import PaymentScreen from '../screens/PaymentScreen';
+import ExtensionScreen from '../screens/ExtensionScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
 import type { RootStackParamList } from './types';
 
@@ -43,8 +48,15 @@ export default function AppNavigator() {
 
   if (initializing || hasOnboarded === null) {
     return (
-      <View style={[styles.loadingContainer, { backgroundColor: colors.background }]}>
-        <Text style={[styles.loadingTitle, { color: colors.secondary }]}>Readify India</Text>
+      <View
+        style={[
+          styles.loadingContainer,
+          { backgroundColor: colors.background },
+        ]}
+      >
+        <Text style={[styles.loadingTitle, { color: colors.secondary }]}>
+          Vriddhora
+        </Text>
         <ActivityIndicator
           size="large"
           color={colors.secondary}
@@ -78,7 +90,10 @@ export default function AppNavigator() {
           <>
             <Stack.Screen name="Home" component={HomeScreen} />
             <Stack.Screen name="Explore" component={ExploreScreen} />
-            <Stack.Screen name="CategoryListing" component={CategoryListingScreen} />
+            <Stack.Screen
+              name="CategoryListing"
+              component={CategoryListingScreen}
+            />
             <Stack.Screen name="Map" component={MapScreen} />
             <Stack.Screen
               name="LocationPermission"
@@ -86,7 +101,10 @@ export default function AppNavigator() {
             />
             <Stack.Screen name="Bookings" component={BookingsScreen} />
             <Stack.Screen name="Subscribe" component={SubscribeScreen} />
-            <Stack.Screen name="MySubscriptions" component={MySubscriptionsScreen} />
+            <Stack.Screen
+              name="MySubscriptions"
+              component={MySubscriptionsScreen}
+            />
             <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen
               name="Notifications"
@@ -98,6 +116,7 @@ export default function AppNavigator() {
             />
             <Stack.Screen name="Booking" component={BookingScreen} />
             <Stack.Screen name="Payment" component={PaymentScreen} />
+            <Stack.Screen name="Extension" component={ExtensionScreen} />
             <Stack.Screen
               name="BookingConfirmation"
               component={BookingConfirmationScreen}
@@ -117,15 +136,27 @@ export default function AppNavigator() {
             </Stack.Screen>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
+            <Stack.Screen
+              name="OtpVerification"
+              component={OtpVerificationScreen}
+            />
           </>
         ) : (
           <>
             <Stack.Screen name="Login" component={LoginScreen} />
             <Stack.Screen name="SignUp" component={SignUpScreen} />
-            <Stack.Screen name="ForgotPassword" component={ForgotPasswordScreen} />
-            <Stack.Screen name="OtpVerification" component={OtpVerificationScreen} />
+            <Stack.Screen
+              name="ForgotPassword"
+              component={ForgotPasswordScreen}
+            />
+            <Stack.Screen
+              name="OtpVerification"
+              component={OtpVerificationScreen}
+            />
           </>
         )}
       </Stack.Navigator>
