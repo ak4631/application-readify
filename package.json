@@ -26,6 +26,7 @@
     "react-native": "0.87.1",
     "react-native-dotenv": "^4.1.1",
     "react-native-qrcode-svg": "^6.3.22",
+    "react-native-razorpay": "^3.0.0",
     "react-native-safe-area-context": "^5.9.1",
     "react-native-screens": "^4.27.0",
     "react-native-svg": "^15.15.5",

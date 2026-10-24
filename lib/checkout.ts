@@ -17,6 +17,8 @@ export type CheckoutOrder = {
   status: string;
   amountPaise: number;
   checkoutUrl: string;
+  // Present when the server has a Razorpay order; drives in-app checkout.
+  razorpay?: { keyId: string; orderId: string; verifyToken: string } | null;
 };
 export type CheckoutStatus = {
   id: string;
@@ -89,6 +91,33 @@ export async function prepareCheckout(
   }
   return result;
 }
+// Hands the in-app checkout result to the server, which checks the signature
+// and the payment with Razorpay. The webhook confirms independently, so a
+// failure here is retried by status polling rather than by paying again.
+export async function verifyPayment(
+  order: CheckoutOrder,
+  result: {
+    razorpay_order_id: string;
+    razorpay_payment_id: string;
+    razorpay_signature: string;
+  },
+) {
+  if (!API_BASE_URL || !order.razorpay) return;
+  const response = await fetch(
+    `${API_BASE_URL.replace(/\/$/, '')}/api/payments/verify`,
+    {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: order.id,
+        token: order.razorpay.verifyToken,
+        ...result,
+      }),
+    },
+  );
+  if (!response.ok) throw new Error('Payment verification is pending.');
+}
+
 export const fetchCheckoutStatus = (id: string) =>
   customerRequest<CheckoutStatus>(`orders/${encodeURIComponent(id)}`, 'GET');
 export const cancelPurchase = (targetId: string) =>

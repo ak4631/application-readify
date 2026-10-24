@@ -11,6 +11,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import RazorpayCheckout, { type RazorpayError } from 'react-native-razorpay';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -19,9 +20,14 @@ import {
   fetchCheckoutStatus,
   newCheckoutKey,
   prepareCheckout,
+  verifyPayment,
   type CheckoutOrder,
   type CheckoutStatus,
 } from '../lib/checkout';
+import { supabase } from '../lib/supabase';
+
+// Razorpay's code for a sheet the customer closed themselves.
+const PAYMENT_CANCELLED = 0;
 
 export default function PaymentScreen() {
   const navigation = useNavigation<any>();
@@ -34,6 +40,8 @@ export default function PaymentScreen() {
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState('');
   const key = useRef(newCheckoutKey());
+  // State lags a render behind; checks right after payment read this instead.
+  const orderRef = useRef<CheckoutOrder | null>(null);
   const finished = useRef(false);
   const checking = useRef(false);
   const mounted = useRef(true);
@@ -44,10 +52,11 @@ export default function PaymentScreen() {
     };
   }, []);
   const check = useCallback(async () => {
-    if (!order || finished.current || checking.current) return;
+    const target = order ?? orderRef.current;
+    if (!target || finished.current || checking.current) return;
     checking.current = true;
     try {
-      const current = await fetchCheckoutStatus(order.id);
+      const current = await fetchCheckoutStatus(target.id);
       if (!mounted.current) return;
       setStatus(current);
       if (current.status === 'CAPTURED') {
@@ -122,14 +131,49 @@ export default function PaymentScreen() {
               },
           key.current,
         ));
+      orderRef.current = prepared;
       setOrder(prepared);
-      if (prepared.status === 'CREATED')
-        await Linking.openURL(prepared.checkoutUrl);
+      if (prepared.status !== 'CREATED') return;
+      if (prepared.razorpay) await payInApp(prepared);
+      else await Linking.openURL(prepared.checkoutUrl);
     } catch (error: any) {
       Alert.alert('Checkout unavailable', error.message ?? 'Please try again.');
     } finally {
       if (mounted.current) setBusy(false);
     }
+  }
+  async function payInApp(prepared: CheckoutOrder) {
+    const { data } = await supabase.auth.getSession();
+    let result;
+    try {
+      result = await RazorpayCheckout.open({
+        key: prepared.razorpay!.keyId,
+        order_id: prepared.razorpay!.orderId,
+        amount: prepared.amountPaise,
+        currency: 'INR',
+        name: 'Vriddhora',
+        description: `${params.libraryName} - ${params.planName}`,
+        prefill: { email: data.session?.user?.email ?? undefined },
+        theme: { color: colors.primary },
+      });
+    } catch (error) {
+      if (!mounted.current) return;
+      const { code } = (error ?? {}) as Partial<RazorpayError>;
+      setMessage(
+        code === PAYMENT_CANCELLED
+          ? 'Payment cancelled. Your seat stays held for a few minutes; tap Pay now to retry.'
+          : 'Payment did not go through. If money was debited, it will be confirmed or refunded automatically. Check the status before paying again.',
+      );
+      check();
+      return;
+    }
+    if (mounted.current) setMessage('Verifying your paymentâ€¦');
+    try {
+      await verifyPayment(prepared, result);
+    } catch {
+      // Webhook confirmation and polling below still settle the order.
+    }
+    check();
   }
   const terminal =
     status &&
@@ -146,8 +190,8 @@ export default function PaymentScreen() {
         </Text>
         <Text style={styles.description}>{params.selectedTimeLabel}</Text>
         <Text style={styles.description}>
-          Razorpay opens in your browser. Return to this screen afterward;
-          access is confirmed only after the server verifies payment.
+          Pay securely with Razorpay without leaving the app. Access is
+          confirmed only after the server verifies your payment.
         </Text>
         {order && (
           <Text style={styles.heading}>
@@ -167,7 +211,7 @@ export default function PaymentScreen() {
             <ActivityIndicator color={colors.onPrimary} />
           ) : (
             <Text style={styles.buttonText}>
-              {order ? 'Reopen secure checkout' : 'Prepare secure checkout'}
+              {order ? 'Retry payment' : 'Pay now'}
             </Text>
           )}
         </TouchableOpacity>
