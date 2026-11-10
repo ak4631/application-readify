@@ -26,8 +26,8 @@ export default function WelcomeScreen({
         <Text style={styles.title}>Welcome to Vriddhora</Text>
 
         <Text style={styles.subtitle}>
-          Discover libraries, reserve a seat and{'\n'}build your reading
-          journey.
+          Find spaces to study, work and train. Choose a plan and manage your
+          access in one place.
         </Text>
 
         <TouchableOpacity

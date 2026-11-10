@@ -1,4 +1,7 @@
+import type { NavigatorScreenParams } from '@react-navigation/native';
+import type { LibraryCategory } from '../constants/categories';
 export type PaymentParams = {
+  category?: LibraryCategory;
   kind: 'flex' | 'subscription' | 'extension';
   libraryId: string;
   libraryName: string;
@@ -15,6 +18,7 @@ export type PaymentParams = {
 };
 
 export type BookingConfirmationParams = {
+  category?: LibraryCategory;
   bookingCode: string;
   planName: string;
   seatNumber: string | null;
@@ -24,31 +28,45 @@ export type BookingConfirmationParams = {
   totalAmount: number;
 };
 
+export type MainTabParamList = {
+  Home: { initialCategory?: string } | undefined;
+  Bookings: { section?: 'passes' | 'subscriptions' } | undefined;
+  Profile: undefined;
+};
+
 export type RootStackParamList = {
+  Main: NavigatorScreenParams<MainTabParamList> | undefined;
   Onboarding: undefined;
   Welcome: undefined;
   Login: undefined;
   SignUp: undefined;
   ForgotPassword: undefined;
   OtpVerification: { email: string };
-  Home: undefined;
-  Explore: { initialCategory?: string } | undefined;
-  // A Home category tile navigates straight here (one category, pre-filtered)
-  // rather than to Explore -- Explore itself is untouched by this and stays
-  // reachable via search/bottom nav/"See all".
-  CategoryListing: { categoryId: string; categoryName: string };
-  Map: { focusVendorId?: string } | undefined;
+  Map:
+    | { focusVendorId?: string; initialCategory?: LibraryCategory | 'all' }
+    | undefined;
   // returnTo: when set, "done" (or skip) goes back to that screen instead of
   // replacing the stack with Home -- used when this is opened to change an
   // already-set location (e.g. from Map), not during first-run onboarding.
-  LocationPermission: { returnTo?: string } | undefined;
-  Bookings: undefined;
-  Subscribe: { libraryId: string; libraryName: string };
-  MySubscriptions: undefined;
-  Profile: undefined;
+  LocationPermission:
+    | { returnTo?: string; initialCategory?: LibraryCategory | 'all' }
+    | undefined;
+  Subscribe: {
+    libraryId: string;
+    libraryName: string;
+    category?: LibraryCategory;
+  };
   Notifications: undefined;
-  LibraryDetails: { libraryId: string; libraryName: string };
-  Booking: { libraryId: string; libraryName: string };
+  LibraryDetails: {
+    libraryId: string;
+    libraryName: string;
+    category?: LibraryCategory;
+  };
+  Booking: {
+    libraryId: string;
+    libraryName: string;
+    category?: LibraryCategory;
+  };
   Extension: { targetId: string; vendorId: string; libraryName: string };
   Payment: PaymentParams;
   BookingConfirmation: BookingConfirmationParams;

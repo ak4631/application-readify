@@ -1,3 +1,4 @@
+import { useAppAlert } from '../context/DialogContext';
 import BrandMark from '../components/BrandMark';
 import React, { useState } from 'react';
 import { useNavigation } from '@react-navigation/native';
@@ -7,7 +8,6 @@ import {
   Text,
   StyleSheet,
   TouchableOpacity,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,6 +27,7 @@ export default function LoginScreen() {
     useNavigation<NativeStackNavigationProp<RootStackParamList, 'Login'>>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
+  const Alert = useAppAlert();
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');

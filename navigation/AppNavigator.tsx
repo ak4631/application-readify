@@ -15,21 +15,16 @@ import LoginScreen from '../screens/LoginScreen';
 import SignUpScreen from '../screens/SignUpScreen';
 import ForgotPasswordScreen from '../screens/ForgotPasswordScreen';
 import OtpVerificationScreen from '../screens/OtpVerificationScreen';
-import HomeScreen from '../screens/HomeScreen';
-import ExploreScreen from '../screens/ExploreScreen';
-import CategoryListingScreen from '../screens/CategoryListingScreen';
 import MapScreen from '../screens/MapScreen';
 import LocationPermissionScreen from '../screens/LocationPermissionScreen';
-import BookingsScreen from '../screens/BookingsScreen';
 import SubscribeScreen from '../screens/SubscribeScreen';
-import MySubscriptionsScreen from '../screens/MySubscriptionsScreen';
-import ProfileScreen from '../screens/ProfileScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
 import LibraryDetailsScreen from '../screens/LibraryDetailsScreen';
 import BookingScreen from '../screens/BookingScreen';
 import PaymentScreen from '../screens/PaymentScreen';
 import ExtensionScreen from '../screens/ExtensionScreen';
 import BookingConfirmationScreen from '../screens/BookingConfirmationScreen';
+import MainTabs from './MainTabs';
 import type { RootStackParamList } from './types';
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -85,27 +80,26 @@ export default function AppNavigator() {
 
   return (
     <NavigationContainer theme={navigationTheme}>
-      <Stack.Navigator screenOptions={{ headerShown: false }}>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          animation: 'slide_from_right',
+          gestureEnabled: true,
+        }}
+      >
         {session ? (
           <>
-            <Stack.Screen name="Home" component={HomeScreen} />
-            <Stack.Screen name="Explore" component={ExploreScreen} />
-            <Stack.Screen
-              name="CategoryListing"
-              component={CategoryListingScreen}
-            />
+            <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen name="Map" component={MapScreen} />
             <Stack.Screen
               name="LocationPermission"
               component={LocationPermissionScreen}
+              options={{
+                presentation: 'modal',
+                animation: 'slide_from_bottom',
+              }}
             />
-            <Stack.Screen name="Bookings" component={BookingsScreen} />
             <Stack.Screen name="Subscribe" component={SubscribeScreen} />
-            <Stack.Screen
-              name="MySubscriptions"
-              component={MySubscriptionsScreen}
-            />
-            <Stack.Screen name="Profile" component={ProfileScreen} />
             <Stack.Screen
               name="Notifications"
               component={NotificationsScreen}

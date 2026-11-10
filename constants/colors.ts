@@ -1,11 +1,11 @@
 export type ThemeColors = typeof lightColors;
 
 export const lightColors = {
-  primary: '#1557C0',
-  primaryDark: '#0F47A1',
-  primaryLight: '#EAF2FF',
+  primary: '#23764B',
+  primaryDark: '#185B39',
+  primaryLight: '#E5F5E9',
 
-  secondary: '#2563EB',
+  secondary: '#2D8555',
 
   cyan: '#00A9E8',
   cyanLight: '#E8F8FF',
@@ -15,13 +15,13 @@ export const lightColors = {
 
   background: '#FFFFFF',
   surface: '#FFFFFF',
-  surfaceAlt: '#F3F4F6',
-  surfaceSubtle: '#F9FAFB',
+  surfaceAlt: '#EEF5EF',
+  surfaceSubtle: '#F7FBF7',
 
-  text: '#111827',
-  subText: '#6B7280',
-  placeholder: '#9CA3AF',
-  border: '#E5E7EB',
+  text: '#162C20',
+  subText: '#607267',
+  placeholder: '#7C8E82',
+  border: '#DDE9DF',
 
   danger: '#DC2626',
   dangerLight: '#FCA5A5',
@@ -36,11 +36,11 @@ export const lightColors = {
 };
 
 export const darkColors: ThemeColors = {
-  primary: '#3B82F6',
-  primaryDark: '#1D4ED8',
-  primaryLight: 'rgba(59,130,246,0.18)',
+  primary: '#2D8555',
+  primaryDark: '#23764B',
+  primaryLight: 'rgba(143,214,163,0.16)',
 
-  secondary: '#60A5FA',
+  secondary: '#8FD6A3',
 
   cyan: '#22D3EE',
   cyanLight: 'rgba(34,211,238,0.14)',
@@ -48,15 +48,15 @@ export const darkColors: ThemeColors = {
   orange: '#FBBF24',
   orangeLight: 'rgba(251,191,36,0.14)',
 
-  background: '#0B1220',
-  surface: '#151E2E',
-  surfaceAlt: '#1E293B',
-  surfaceSubtle: '#1A2434',
+  background: '#101C15',
+  surface: '#17291E',
+  surfaceAlt: '#21382A',
+  surfaceSubtle: '#1B3023',
 
-  text: '#F1F5F9',
-  subText: '#94A3B8',
-  placeholder: '#64748B',
-  border: '#2A3548',
+  text: '#ECF8EF',
+  subText: '#ACC7B3',
+  placeholder: '#8DA998',
+  border: '#34513D',
 
   danger: '#F87171',
   dangerLight: '#7F1D1D',

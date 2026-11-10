@@ -9,6 +9,7 @@ import {
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useFocusEffect } from '@react-navigation/native';
+import Icon from 'react-native-vector-icons/Ionicons';
 import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
@@ -77,7 +78,19 @@ export default function NotificationsScreen() {
         {loading && <ActivityIndicator color={colors.primary} />}
         {!!error && <Text style={{ color: colors.danger }}>{error}</Text>}
         {!loading && !notifications.length && !error && (
-          <Text style={{ color: colors.subText }}>No notifications yet.</Text>
+          <View style={styles.emptyCard}>
+            <View style={styles.emptyIcon}>
+              <Icon
+                name="notifications-outline"
+                size={32}
+                color={colors.primary}
+              />
+            </View>
+            <Text style={styles.emptyTitle}>A little quiet, for now</Text>
+            <Text style={styles.description}>
+              Your booking and payment updates will appear here.
+            </Text>
+          </View>
         )}
         {notifications.map(item => (
           <TouchableOpacity
@@ -85,7 +98,17 @@ export default function NotificationsScreen() {
             onPress={() => markRead(item.id)}
             style={[styles.card, !!item.read_at && styles.read]}
           >
-            <Text style={styles.title}>{item.title}</Text>
+            <View style={styles.notificationHeading}>
+              <View style={styles.notificationIcon}>
+                <Icon
+                  name="notifications-outline"
+                  size={20}
+                  color={colors.primary}
+                />
+              </View>
+              <Text style={styles.title}>{item.title}</Text>
+              {!item.read_at && <View style={styles.unreadDot} />}
+            </View>
             <Text style={styles.description}>{item.body}</Text>
             <View style={styles.timeWrap}>
               <Text style={styles.time}>
@@ -101,17 +124,59 @@ export default function NotificationsScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    emptyCard: {
+      paddingVertical: 44,
+      paddingHorizontal: 24,
+      alignItems: 'center',
+      borderRadius: 28,
+      backgroundColor: colors.surfaceSubtle,
+    },
+    emptyIcon: {
+      width: 80,
+      height: 80,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderRadius: 28,
+      backgroundColor: colors.primaryLight,
+      marginBottom: 20,
+    },
+    emptyTitle: { color: colors.text, fontSize: 22, fontWeight: '700' },
+    notificationHeading: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    notificationIcon: {
+      width: 40,
+      height: 40,
+      borderRadius: 14,
+      backgroundColor: colors.primaryLight,
+      justifyContent: 'center',
+      alignItems: 'center',
+    },
+    unreadDot: {
+      width: 7,
+      height: 7,
+      borderRadius: 4,
+      backgroundColor: colors.primary,
+    },
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 16 },
     card: {
-      padding: 16,
+      padding: 20,
+      backgroundColor: colors.surfaceSubtle,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 24,
     },
-    read: { opacity: 0.65 },
-    title: { color: colors.text, fontWeight: '700' },
-    description: { color: colors.subText, marginTop: 8 },
+    read: { backgroundColor: colors.surface },
+    title: { color: colors.text, fontWeight: '700', fontSize: 15, flex: 1 },
+    description: {
+      color: colors.subText,
+      marginTop: 12,
+      lineHeight: 21,
+      fontSize: 14,
+    },
     timeWrap: { marginTop: 8 },
     time: { color: colors.subText, fontSize: 12 },
   });

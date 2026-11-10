@@ -1,7 +1,7 @@
+import { useAppAlert } from '../context/DialogContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,7 +10,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ScreenHeader from '../components/ScreenHeader';
 import QRCode from 'react-native-qrcode-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -38,20 +37,27 @@ function formatDate(value: string) {
   });
 }
 
-export default function MySubscriptionsScreen() {
+export default function MySubscriptionsScreen({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
+  const Alert = useAppAlert();
 
   const [subscriptions, setSubscriptions] = useState<Subscription[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setError] = useState('');
 
   const loadSubscriptions = useCallback(async () => {
+    setError('');
     try {
       const data = await fetchSubscriptions();
       setSubscriptions(data);
-    } catch (error: any) {
-      console.error('Failed to load subscriptions:', error.message);
+    } catch {
+      setError('Could not load your subscriptions. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -70,8 +76,7 @@ export default function MySubscriptionsScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScreenHeader title="My Subscriptions" />
+    <SafeAreaView edges={embedded ? [] : ['top']} style={styles.container}>
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
@@ -84,32 +89,35 @@ export default function MySubscriptionsScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>My Subscriptions</Text>
-          <Text style={styles.subtitle}>
-            Plans you've subscribed to across libraries.
-          </Text>
-        </View>
+        {!embedded && (
+          <View style={styles.header}>
+            <Text style={styles.title}>My Subscriptions</Text>
+            <Text style={styles.subtitle}>
+              Plans you've subscribed to across spaces.
+            </Text>
+          </View>
+        )}
 
+        {!!loadError && (
+          <View accessibilityRole="alert" style={styles.errorCard}>
+            <Text style={{ color: colors.danger }}>{loadError}</Text>
+            <TouchableOpacity
+              onPress={loadSubscriptions}
+              style={styles.retryAction}
+            >
+              <Text style={{ color: colors.primary }}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {isLoading ? (
           <ActivityIndicator
             size="large"
             color={colors.primary}
             style={styles.loader}
           />
-        ) : subscriptions.length > 0 ? (
+        ) : loadError ? null : subscriptions.length > 0 ? (
           subscriptions.map(subscription => (
-            <TouchableOpacity
-              key={subscription.id}
-              style={styles.card}
-              activeOpacity={0.8}
-              onPress={() =>
-                navigation.navigate('Subscribe', {
-                  libraryId: subscription.vendor_id,
-                  libraryName: subscription.library_name,
-                })
-              }
-            >
+            <View key={subscription.id} style={styles.card}>
               <View style={styles.cardHeader}>
                 <Text style={styles.libraryName} numberOfLines={1}>
                   {subscription.library_name}
@@ -213,7 +221,7 @@ export default function MySubscriptionsScreen() {
               <View style={styles.footerRow}>
                 <Text style={styles.amount}>₹{subscription.total_amount}</Text>
               </View>
-            </TouchableOpacity>
+            </View>
           ))
         ) : (
           <View style={styles.emptyCard}>
@@ -221,16 +229,14 @@ export default function MySubscriptionsScreen() {
               <Icon name="ribbon-outline" size={30} color={colors.primary} />
             </View>
             <Text style={styles.emptyTitle}>No subscriptions yet</Text>
-            <Text style={styles.emptyText}>
-              Explore libraries to subscribe to a plan.
-            </Text>
+            <Text style={styles.emptyText}>Explore spaces to find a plan.</Text>
 
             <TouchableOpacity
               style={styles.exploreButton}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('Explore')}
+              onPress={() => navigation.navigate('Home')}
             >
-              <Text style={styles.exploreButtonText}>Explore Libraries</Text>
+              <Text style={styles.exploreButtonText}>Explore Spaces</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -241,6 +247,8 @@ export default function MySubscriptionsScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    errorCard: { padding: 16, gap: 12 },
+    retryAction: { minHeight: 48, justifyContent: 'center' },
     qrWrap: {
       marginTop: 12,
       padding: 12,

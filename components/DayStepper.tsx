@@ -20,7 +20,12 @@ type Props = {
 // +/- day-count control for a flexible plan, with the live total that
 // updates instantly as the customer taps (no server round trip needed for
 // the price itself -- only availability re-checks as `days` changes).
-export default function DayStepper({ days, onChange, totalPrice, pricePerDay }: Props) {
+export default function DayStepper({
+  days,
+  onChange,
+  totalPrice,
+  pricePerDay,
+}: Props) {
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
 
@@ -29,31 +34,51 @@ export default function DayStepper({ days, onChange, totalPrice, pricePerDay }: 
       <Text style={styles.label}>Number of days</Text>
       <View style={styles.stepperRow}>
         <TouchableOpacity
-          style={[styles.stepButton, days <= MIN_FLEX_DAYS && styles.stepButtonDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="Fewer days"
+          style={[
+            styles.stepButton,
+            days <= MIN_FLEX_DAYS && styles.stepButtonDisabled,
+          ]}
           activeOpacity={0.7}
           disabled={days <= MIN_FLEX_DAYS}
           onPress={() => onChange(Math.max(MIN_FLEX_DAYS, days - 1))}
         >
-          <Icon name="remove" size={18} color={days <= MIN_FLEX_DAYS ? colors.subText : colors.primary} />
+          <Icon
+            name="remove"
+            size={18}
+            color={days <= MIN_FLEX_DAYS ? colors.subText : colors.primary}
+          />
         </TouchableOpacity>
         <View style={styles.daysBox}>
           <Text style={styles.daysValue}>{days}</Text>
           <Text style={styles.daysUnit}>{days === 1 ? 'day' : 'days'}</Text>
         </View>
         <TouchableOpacity
-          style={[styles.stepButton, days >= MAX_FLEX_DAYS && styles.stepButtonDisabled]}
+          accessibilityRole="button"
+          accessibilityLabel="More days"
+          style={[
+            styles.stepButton,
+            days >= MAX_FLEX_DAYS && styles.stepButtonDisabled,
+          ]}
           activeOpacity={0.7}
           disabled={days >= MAX_FLEX_DAYS}
           onPress={() => onChange(Math.min(MAX_FLEX_DAYS, days + 1))}
         >
-          <Icon name="add" size={18} color={days >= MAX_FLEX_DAYS ? colors.subText : colors.primary} />
+          <Icon
+            name="add"
+            size={18}
+            color={days >= MAX_FLEX_DAYS ? colors.subText : colors.primary}
+          />
         </TouchableOpacity>
       </View>
       <View style={styles.priceRow}>
         <Text style={styles.priceBreakdown}>
           ₹{pricePerDay.toLocaleString('en-IN')}/day × {days}
         </Text>
-        <Text style={styles.totalPrice}>₹{totalPrice.toLocaleString('en-IN')}</Text>
+        <Text style={styles.totalPrice}>
+          ₹{totalPrice.toLocaleString('en-IN')}
+        </Text>
       </View>
     </View>
   );
@@ -77,16 +102,19 @@ const createStyles = (colors: ThemeColors) =>
       gap: 18,
     },
     stepButton: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
+      width: 48,
+      height: 48,
+      borderRadius: 24,
       borderWidth: 1,
       borderColor: colors.primary,
       backgroundColor: colors.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    stepButtonDisabled: { borderColor: colors.border, backgroundColor: colors.surfaceAlt },
+    stepButtonDisabled: {
+      borderColor: colors.border,
+      backgroundColor: colors.surfaceAlt,
+    },
     daysBox: { alignItems: 'center', minWidth: 64 },
     daysValue: { fontSize: 28, fontWeight: '800', color: colors.text },
     daysUnit: { fontSize: 11, color: colors.subText },

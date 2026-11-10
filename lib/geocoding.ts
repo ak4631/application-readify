@@ -14,7 +14,10 @@ type LocationIqPlace = {
   lon: string;
 };
 
-export async function searchAddress(query: string): Promise<GeocodeResult[]> {
+export async function searchAddress(
+  query: string,
+  near?: { latitude: number; longitude: number },
+): Promise<GeocodeResult[]> {
   if (query.trim().length < 3) {
     return [];
   }
@@ -34,11 +37,24 @@ export async function searchAddress(query: string): Promise<GeocodeResult[]> {
     throw new Error(`LocationIQ autocomplete failed: ${res.status}`);
   }
   const data = (await res.json()) as LocationIqPlace[];
-  return data.map(place => ({
+  const results = data.map(place => ({
     label: place.display_name,
     latitude: Number(place.lat),
     longitude: Number(place.lon),
   }));
+  if (!near) return results;
+  const radians = (degrees: number) => (degrees * Math.PI) / 180;
+  const distance = (place: GeocodeResult) => {
+    const lat = radians(place.latitude - near.latitude);
+    const lon = radians(place.longitude - near.longitude);
+    return (
+      Math.sin(lat / 2) ** 2 +
+      Math.cos(radians(near.latitude)) *
+        Math.cos(radians(place.latitude)) *
+        Math.sin(lon / 2) ** 2
+    );
+  };
+  return results.sort((a, b) => distance(a) - distance(b));
 }
 
 export async function reverseGeocode(
@@ -55,6 +71,22 @@ export async function reverseGeocode(
   if (!res.ok) {
     return null;
   }
-  const data = (await res.json()) as { display_name?: string };
+  const data = (await res.json()) as {
+    display_name?: string;
+    address?: Record<string, string | undefined>;
+  };
+  const parts = data.address;
+  if (parts) {
+    const locality =
+      parts.neighbourhood ||
+      parts.suburb ||
+      parts.quarter ||
+      parts.city_district;
+    const city = parts.city || parts.town || parts.village || parts.county;
+    const label = [
+      ...new Set([locality, city, parts.state].filter(Boolean)),
+    ].join(', ');
+    if (label) return label;
+  }
   return data.display_name ?? null;
 }

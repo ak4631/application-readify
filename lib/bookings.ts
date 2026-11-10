@@ -3,6 +3,7 @@ import { cancelPurchase } from './checkout';
 
 export type Booking = {
   kind?: 'visit' | 'flex';
+  days?: number;
   payment_status?: string;
   vendor_id?: string;
   id: string;

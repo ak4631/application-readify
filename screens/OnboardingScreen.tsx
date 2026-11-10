@@ -11,7 +11,6 @@ import {
   NativeScrollEvent,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import { useNavigation } from '@react-navigation/native';
 import { useStyles } from '../hooks/useStyles';
 import type { ThemeColors } from '../constants/colors';
 
@@ -20,32 +19,31 @@ const { width } = Dimensions.get('window');
 const SLIDES = [
   {
     image: require('../assets/images/illustrations/discover-library.png'),
-    title: 'Discover Libraries Around You',
+    title: 'Discover Spaces Around You',
     subtitle:
-      'Find public, private and community libraries near your location.',
+      'Explore libraries, gyms, co-working spaces and exam hubs in one place.',
   },
   {
     image: require('../assets/images/illustrations/rent-books.png'),
-    title: 'Rent Books Easily',
+    title: 'Choose Your Plan',
     subtitle:
-      'Borrow books from nearby libraries and return them effortlessly.',
+      'Choose an available space, compare its plans and review the total before paying.',
   },
   {
     image: require('../assets/images/illustrations/read-anywhere.png'),
-    title: 'Vriddhora',
-    subtitle: 'Building the Future of Libraries',
+    title: 'Your Pass, Ready to Go',
+    subtitle:
+      'Show your entry QR when you arrive. Find your passes anytime in My bookings.',
   },
 ];
 
 export default function OnboardingScreen({ onDone }: { onDone: () => void }) {
-  const navigation = useNavigation<any>();
   const styles = useStyles(createStyles);
   const scrollRef = useRef<any>(null);
   const [currentPage, setCurrentPage] = useState(0);
 
   const goToWelcome = () => {
     onDone();
-    navigation.replace('Welcome');
   };
 
   const nextPage = () => {

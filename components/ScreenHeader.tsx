@@ -24,6 +24,8 @@ export default function ScreenHeader({ title, right, onBack }: Props) {
   return (
     <View style={styles.header}>
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel="Go back"
         style={styles.backButton}
         activeOpacity={0.7}
         onPress={onBack ?? (() => navigation.goBack())}
@@ -41,22 +43,29 @@ export default function ScreenHeader({ title, right, onBack }: Props) {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     header: {
-      minHeight: 56,
+      minHeight: 64,
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 16,
     },
     backButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 10,
+      width: 48,
+      height: 48,
+      borderRadius: 17,
       borderWidth: 1,
       borderColor: colors.border,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    headerTitle: { flex: 1, marginHorizontal: 12, fontSize: 15, fontWeight: '700', color: colors.text, textAlign: 'center' },
-    headerSpacer: { width: 36 },
+    headerTitle: {
+      flex: 1,
+      marginHorizontal: 12,
+      fontSize: 17,
+      fontWeight: '700',
+      color: colors.text,
+      textAlign: 'center',
+    },
+    headerSpacer: { width: 48 },
   });

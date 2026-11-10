@@ -1,3 +1,4 @@
+import { useAppAlert } from '../context/DialogContext';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   useNavigation,
@@ -6,8 +7,6 @@ import {
 } from '@react-navigation/native';
 import {
   ActivityIndicator,
-  Alert,
-  Image,
   KeyboardAvoidingView,
   Platform,
   ScrollView,
@@ -27,12 +26,15 @@ import { useStyles } from '../hooks/useStyles';
 import { Radius } from '../constants/radius';
 import { useAuth } from '../context/AuthContext';
 import { supabase } from '../lib/supabase';
-import { getLibraryImage } from '../constants/dummyImages';
+import ListingImage from '../components/ListingImage';
+import { useServiceCatalog } from '../hooks/useServiceCatalog';
+import { categoryName, type LibraryCategory } from '../constants/categories';
 import { fetchPlans, type Plan } from '../lib/plans';
 import { fetchReviews, submitReview, type Review } from '../lib/reviews';
 import type { ThemeColors } from '../constants/colors';
 
 type Library = {
+  category: LibraryCategory;
   id: string;
   name: string;
   description: string | null;
@@ -83,10 +85,12 @@ export default function LibraryDetailsScreen() {
   const route = useRoute<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
+  const Alert = useAppAlert();
   const insets = useSafeAreaInsets();
   const { session } = useAuth();
   const { libraryId, libraryName } = route.params;
 
+  const services = useServiceCatalog();
   const [library, setLibrary] = useState<Library | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [plans, setPlans] = useState<Plan[]>([]);
@@ -113,7 +117,7 @@ export default function LibraryDetailsScreen() {
     supabase
       .from('published_listings')
       .select(
-        'id, name, description, address_line_1, address_line_2, locality, city, state, postal_code, image_url, average_rating, review_count',
+        'id, name, category, description, address_line_1, address_line_2, locality, city, state, postal_code, image_url, average_rating, review_count',
       )
       .eq('id', libraryId)
       .single()
@@ -172,7 +176,13 @@ export default function LibraryDetailsScreen() {
         .join(', ')
     : '';
 
-  const cheapestPlan = plans.length > 0 ? plans[0] : null;
+  const canBook =
+    !isLoading &&
+    !!library &&
+    !services.loading &&
+    !services.error &&
+    services.enabled(library.category);
+  const availablePlanCount = plans.length;
   const ratingDisplay =
     library?.average_rating != null ? library.average_rating.toFixed(1) : 'New';
 
@@ -236,10 +246,10 @@ export default function LibraryDetailsScreen() {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="handled"
         >
-          <Image
-            source={{ uri: library?.image_url ?? getLibraryImage(libraryId) }}
+          <ListingImage
+            uri={library?.image_url}
+            category={library?.category ?? route.params?.category}
             style={styles.imagePlaceholder}
-            resizeMode="cover"
           />
 
           <View style={styles.headerSection}>
@@ -265,16 +275,10 @@ export default function LibraryDetailsScreen() {
 
           <View style={styles.infoRow}>
             <View style={styles.infoCard}>
-              <Text style={styles.infoValue}>
-                {cheapestPlan ? `₹${cheapestPlan.price}` : '—'}
-              </Text>
+              <Text style={styles.infoValue}>{availablePlanCount}</Text>
               <Text style={styles.infoLabel}>
-                {cheapestPlan ? 'Starting price' : 'No plans yet'}
+                {availablePlanCount === 1 ? 'Plan' : 'Plans'}
               </Text>
-            </View>
-            <View style={styles.infoCard}>
-              <Text style={styles.infoValue}>24/7</Text>
-              <Text style={styles.infoLabel}>Open</Text>
             </View>
             <View style={styles.infoCard}>
               <Text style={styles.infoValue}>{ratingDisplay}</Text>
@@ -282,50 +286,10 @@ export default function LibraryDetailsScreen() {
             </View>
           </View>
 
-          <Text style={styles.sectionTitle}>Amenities</Text>
-          <View style={styles.amenitiesGrid}>
-            <View style={styles.amenity}>
-              <Icon
-                name="snow-outline"
-                size={18}
-                color={colors.primary}
-                style={styles.amenityIcon}
-              />
-              <Text style={styles.amenityText}>AC</Text>
-            </View>
-            <View style={styles.amenity}>
-              <Icon
-                name="wifi-outline"
-                size={18}
-                color={colors.primary}
-                style={styles.amenityIcon}
-              />
-              <Text style={styles.amenityText}>Wi-Fi</Text>
-            </View>
-            <View style={styles.amenity}>
-              <Icon
-                name="flash-outline"
-                size={18}
-                color={colors.primary}
-                style={styles.amenityIcon}
-              />
-              <Text style={styles.amenityText}>Power Backup</Text>
-            </View>
-            <View style={styles.amenity}>
-              <Icon
-                name="time-outline"
-                size={18}
-                color={colors.primary}
-                style={styles.amenityIcon}
-              />
-              <Text style={styles.amenityText}>24/7</Text>
-            </View>
-          </View>
-
-          <Text style={styles.sectionTitle}>About this library</Text>
+          <Text style={styles.sectionTitle}>About this space</Text>
           <Text style={styles.description}>
             {library?.description ||
-              'A comfortable study space designed for students and professionals looking for a focused reading environment.'}
+              'Contact the venue for more information about this space.'}
           </Text>
 
           <Text style={styles.sectionTitle}>Address</Text>
@@ -416,42 +380,49 @@ export default function LibraryDetailsScreen() {
               No reviews yet. Be the first to share your experience.
             </Text>
           )}
-
-          <TouchableOpacity
-            style={styles.bookButton}
-            activeOpacity={0.8}
-            onPress={() =>
-              navigation.navigate('Booking', { libraryId, libraryName })
-            }
-          >
-            <Icon
-              name="calendar-outline"
-              size={18}
-              color={colors.onPrimary}
-              style={styles.bookButtonIcon}
-            />
-            <Text style={styles.bookButtonText}>Book a Session</Text>
-          </TouchableOpacity>
-
-          <TouchableOpacity
-            style={styles.subscribeButton}
-            activeOpacity={0.8}
-            onPress={() =>
-              navigation.navigate('Subscribe', { libraryId, libraryName })
-            }
-          >
-            <Icon
-              name="ribbon-outline"
-              size={18}
-              color={colors.primary}
-              style={styles.bookButtonIcon}
-            />
-            <Text style={styles.subscribeButtonText}>
-              View Plans & Subscribe
-            </Text>
-          </TouchableOpacity>
         </ScrollView>
       </KeyboardAvoidingView>
+      <View style={styles.bookingBar}>
+        <View style={styles.barCopy}>
+          <Text style={styles.addressTitle}>
+            {categoryName(library?.category)}
+          </Text>
+          <Text style={styles.addressText}>
+            {services.error
+              ? 'Could not check availability'
+              : 'Explore access plans'}
+          </Text>
+        </View>
+        <TouchableOpacity
+          accessibilityRole="button"
+          disabled={!canBook && !services.error}
+          accessibilityState={{ disabled: !canBook && !services.error }}
+          style={[
+            styles.chooseButton,
+            !canBook && !services.error && styles.disabled,
+          ]}
+          onPress={() =>
+            services.error
+              ? services.retry()
+              : navigation.navigate('Booking', {
+                  libraryId,
+                  libraryName,
+                  category: library?.category,
+                })
+          }
+        >
+          <Text style={styles.bookButtonText}>
+            {isLoading || services.loading
+              ? 'Checking...'
+              : services.error
+              ? 'Try again'
+              : canBook
+              ? 'Choose a plan'
+              : 'Coming soon'}
+          </Text>
+          <Icon name="arrow-forward" size={18} color={colors.onPrimary} />
+        </TouchableOpacity>
+      </View>
     </SafeAreaView>
   );
 }
@@ -459,10 +430,30 @@ export default function LibraryDetailsScreen() {
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
+    disabled: { opacity: 0.5 },
+    barCopy: { flex: 1 },
+    bookingBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    chooseButton: {
+      minHeight: 52,
+      paddingHorizontal: 18,
+      borderRadius: 16,
+      backgroundColor: colors.primary,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
     content: { flex: 1 },
     contentContainer: { paddingBottom: 32 },
     imagePlaceholder: {
-      height: 220,
+      height: 264,
       backgroundColor: colors.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
@@ -479,7 +470,15 @@ const createStyles = (colors: ThemeColors) =>
       justifyContent: 'center',
       alignItems: 'center',
     },
-    headerSection: { paddingHorizontal: 20, paddingTop: 20 },
+    headerSection: {
+      marginHorizontal: 16,
+      marginTop: -24,
+      padding: 20,
+      borderRadius: 26,
+      borderWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
     title: {
       fontSize: 28,
       lineHeight: 34,
@@ -504,7 +503,7 @@ const createStyles = (colors: ThemeColors) =>
     infoCard: {
       flex: 1,
       minHeight: 76,
-      borderRadius: 14,
+      borderRadius: 20,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
@@ -554,7 +553,7 @@ const createStyles = (colors: ThemeColors) =>
     addressCard: {
       marginHorizontal: 20,
       padding: 16,
-      borderRadius: 14,
+      borderRadius: 20,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
@@ -564,7 +563,7 @@ const createStyles = (colors: ThemeColors) =>
     reviewFormCard: {
       marginHorizontal: 20,
       padding: 16,
-      borderRadius: 14,
+      borderRadius: 20,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
@@ -604,7 +603,7 @@ const createStyles = (colors: ThemeColors) =>
       marginHorizontal: 20,
       marginTop: 12,
       padding: 14,
-      borderRadius: 14,
+      borderRadius: 20,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,

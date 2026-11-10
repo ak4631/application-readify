@@ -3,11 +3,13 @@ import {
   ActivityIndicator,
   ScrollView,
   Text,
+  View,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { useNavigation, useRoute } from '@react-navigation/native';
+import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import ScreenHeader from './ScreenHeader';
 import DayStepper from './DayStepper';
 import { fetchPlans, formatPlanDuration, type Plan } from '../lib/plans';
@@ -21,15 +23,19 @@ import { useStyles } from '../hooks/useStyles';
 import type { ThemeColors } from '../constants/colors';
 
 export default function PurchasePicker({
-  kind,
+  kind: initialKind,
 }: {
   kind: 'flex' | 'subscription';
 }) {
+  const [kind, setKind] = useState(initialKind);
   const route = useRoute<any>();
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
-  const { libraryId, libraryName } = route.params;
+  const { libraryId, libraryName, category = 'library' } = route.params;
+  const services = useServiceCatalog();
+  const categoryEnabled =
+    !services.loading && !services.error && services.enabled(category);
   const [plans, setPlans] = useState<Plan[]>([]);
   const [planId, setPlanId] = useState<string | null>(null);
   const [date, setDate] = useState(toLocalDateId(new Date()));
@@ -41,6 +47,7 @@ export default function PurchasePicker({
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [retry, setRetry] = useState(0);
   const dates = useMemo(
     () =>
       Array.from({ length: 14 }, (_, index) => {
@@ -54,6 +61,12 @@ export default function PurchasePicker({
   useEffect(() => {
     let active = true;
     setLoading(true);
+    setError('');
+    setOptions({ totalSeats: 0, options: [] });
+    if (!categoryEnabled) {
+      setLoading(false);
+      return;
+    }
     fetchPlans(libraryId)
       .then(data => {
         if (!active) return;
@@ -80,9 +93,9 @@ export default function PurchasePicker({
     return () => {
       active = false;
     };
-  }, [libraryId, kind]);
+  }, [libraryId, kind, retry, categoryEnabled]);
   useEffect(() => {
-    if (!planId) return;
+    if (!planId || !categoryEnabled) return;
     let active = true;
     setLoading(true);
     setTime(null);
@@ -115,7 +128,7 @@ export default function PurchasePicker({
     return () => {
       active = false;
     };
-  }, [libraryId, planId, date, days, kind]);
+  }, [libraryId, planId, date, days, kind, retry, categoryEnabled]);
   const selected = options.options.find(
     slot => slot.start_time === time && slot.seats_available > 0,
   );
@@ -124,17 +137,81 @@ export default function PurchasePicker({
       ? plan.price * (plan.daily_hours ?? 0) * days
       : plan.price
     : 0;
+  if (services.loading || services.error || !services.enabled(category)) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <ScreenHeader title="Choose your plan" />
+        <View style={styles.content}>
+          <Text style={styles.title}>{libraryName}</Text>
+          {services.loading ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Text style={styles.description}>
+              {services.error
+                ? 'Could not check service availability. Please try again.'
+                : 'This category is coming soon. Explore another category to find an available space.'}
+            </Text>
+          )}
+          {services.error && (
+            <TouchableOpacity
+              style={styles.retryAction}
+              onPress={services.retry}
+            >
+              <Text style={{ color: colors.primary }}>Try again</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+      </SafeAreaView>
+    );
+  }
   return (
     <SafeAreaView style={styles.container}>
       <ScrollView contentContainerStyle={styles.content}>
-        <ScreenHeader
-          title={kind === 'flex' ? 'Flex Booking' : 'Subscriptions'}
-        />
+        <ScreenHeader title="Choose your plan" />
         <Text style={styles.title}>{libraryName}</Text>
+        <View style={styles.types}>
+          {(['flex', 'subscription'] as const).map(value => (
+            <TouchableOpacity
+              key={value}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: kind === value }}
+              onPress={() => {
+                if (kind !== value) {
+                  setPlans([]);
+                  setPlanId(null);
+                  setTime(null);
+                  setKind(value);
+                }
+              }}
+              style={[
+                styles.type,
+                kind === value && { backgroundColor: colors.primary },
+              ]}
+            >
+              <Text
+                style={{
+                  color: kind === value ? colors.onPrimary : colors.text,
+                  ...styles.typeTitle,
+                }}
+              >
+                {value === 'flex' ? 'Day pass' : 'Longer plan'}
+              </Text>
+              <Text
+                style={{
+                  color: kind === value ? colors.onPrimary : colors.subText,
+                  ...styles.typeCaption,
+                }}
+              >
+                {value === 'flex' ? '1-14 days' : 'Monthly, quarterly, yearly'}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </View>
+        <Text style={styles.heading}>1. Choose a plan</Text>
         <Text style={styles.description}>
           {kind === 'flex'
-            ? 'Choose 1–14 consecutive days and a daily time. Spans containing closed days cannot be booked.'
-            : 'Choose a plan and start date. The same seat is held during the owner-defined daily access window for your whole term.'}
+            ? 'For a short stay. Choose consecutive days and the same daily hours.'
+            : 'For a regular routine. Your plan includes access during the daily hours shown below.'}
         </Text>
         {plans.map(item => (
           <TouchableOpacity
@@ -144,7 +221,9 @@ export default function PurchasePicker({
           >
             <Text style={styles.heading}>{item.name}</Text>
             <Text style={styles.description}>
-              ₹{item.price} · {formatPlanDuration(item)}
+              {item.is_flexible
+                ? formatPlanDuration(item)
+                : `₹${item.price} · ${formatPlanDuration(item)}`}
               {item.daily_start && !item.is_flexible
                 ? ` · starts ${item.daily_start}`
                 : ''}
@@ -157,15 +236,30 @@ export default function PurchasePicker({
             yet.
           </Text>
         )}
-        <Text style={styles.heading}>Start date</Text>
+        <Text style={styles.heading}>2. Choose a start date</Text>
         <ScrollView horizontal>
           {dates.map(value => (
             <TouchableOpacity
               key={value}
+              accessibilityRole="button"
+              accessibilityLabel={`Start date ${value}`}
+              accessibilityState={{ selected: date === value }}
               onPress={() => setDate(value)}
-              style={[styles.date, date === value && styles.selected]}
+              style={[styles.date, date === value && styles.selectedDate]}
             >
-              <Text style={{ color: colors.text }}>{value}</Text>
+              <Text
+                style={[
+                  styles.dateText,
+                  date === value && styles.selectedDateText,
+                ]}
+              >
+                {date === value && '\u2713 '}
+                {new Date(`${value}T12:00:00`).toLocaleDateString('en-IN', {
+                  weekday: 'short',
+                  day: 'numeric',
+                  month: 'short',
+                })}
+              </Text>
             </TouchableOpacity>
           ))}
         </ScrollView>
@@ -177,6 +271,7 @@ export default function PurchasePicker({
             totalPrice={price}
           />
         )}
+        <Text style={styles.heading}>3. Daily access hours</Text>
         {loading ? (
           <ActivityIndicator color={colors.primary} />
         ) : (
@@ -198,8 +293,8 @@ export default function PurchasePicker({
                 {slot.seats_available === 0
                   ? 'Unavailable'
                   : slot.seats_available === options.totalSeats
-                  ? 'Fully available'
-                  : 'Partially available'}
+                  ? 'Seats available'
+                  : 'Seats available'}
               </Text>
             </TouchableOpacity>
           ))
@@ -212,19 +307,29 @@ export default function PurchasePicker({
           </Text>
         )}
         {!!error && (
-          <Text accessibilityRole="alert" style={{ color: colors.danger }}>
-            {error}
-          </Text>
+          <View accessibilityRole="alert">
+            <Text style={{ color: colors.danger }}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryAction}
+              onPress={() => setRetry(value => value + 1)}
+            >
+              <Text style={{ color: colors.primary }}>Try again</Text>
+            </TouchableOpacity>
+          </View>
         )}
+      </ScrollView>
+      <View style={styles.footer}>
         <Text style={{ color: colors.text }}>
-          Plan total: ₹{price.toFixed(2)}. The final total is calculated
-          securely at checkout.
+          {plan
+            ? `Plan ₹${price.toFixed(2)} + ₹6 booking fee`
+            : 'Choose a plan to see pricing.'}
         </Text>
         <TouchableOpacity
           disabled={loading || !plan || !selected}
           onPress={() =>
             navigation.navigate('Payment', {
               kind,
+              category,
               libraryId,
               libraryName,
               planId: plan!.id,
@@ -239,9 +344,9 @@ export default function PurchasePicker({
           }
           style={[styles.button, (loading || !selected) && styles.disabled]}
         >
-          <Text style={styles.buttonText}>Continue to checkout</Text>
+          <Text style={styles.buttonText}>Review booking</Text>
         </TouchableOpacity>
-      </ScrollView>
+      </View>
     </SafeAreaView>
   );
 }
@@ -250,17 +355,55 @@ const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: colors.background },
     content: { padding: 20, gap: 18 },
-    title: { color: colors.text, fontSize: 20, fontWeight: '700' },
+    retryAction: { minHeight: 48, justifyContent: 'center' },
+    footer: {
+      padding: 20,
+      gap: 12,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      backgroundColor: colors.surface,
+    },
+    typeTitle: { fontWeight: '700' },
+    typeCaption: { fontSize: 12 },
+    types: {
+      flexDirection: 'row',
+      padding: 4,
+      borderRadius: 18,
+      backgroundColor: colors.surfaceAlt,
+      gap: 4,
+    },
+    type: {
+      flex: 1,
+      minHeight: 72,
+      padding: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      borderRadius: 14,
+      gap: 6,
+    },
+    title: { color: colors.text, fontSize: 26, fontWeight: '700' },
     heading: { color: colors.text, fontWeight: '700' },
     description: { color: colors.subText },
     card: {
-      padding: 16,
+      padding: 20,
+      backgroundColor: colors.surface,
       borderWidth: 2,
       borderColor: colors.border,
-      borderRadius: 12,
+      borderRadius: 20,
     },
-    selected: { borderColor: colors.primary },
+    selected: {
+      borderColor: colors.primary,
+      backgroundColor: colors.primaryLight,
+    },
+    dateText: { color: colors.text, fontWeight: '500' },
+    selectedDate: {
+      backgroundColor: colors.primary,
+      borderColor: colors.primary,
+    },
+    selectedDateText: { color: colors.onPrimary, fontWeight: '700' },
     date: {
+      minHeight: 48,
+      justifyContent: 'center',
       padding: 12,
       marginRight: 8,
       borderWidth: 1,
@@ -270,7 +413,7 @@ const createStyles = (colors: ThemeColors) =>
     slot: {
       padding: 14,
       borderWidth: 1,
-      borderRadius: 10,
+      borderRadius: 16,
       borderColor: colors.border,
     },
     disabled: { opacity: 0.5 },

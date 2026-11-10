@@ -1,6 +1,6 @@
+import { useAppAlert } from '../context/DialogContext';
 import React from 'react';
 import {
-  Alert,
   ScrollView,
   StyleSheet,
   Switch,
@@ -9,7 +9,6 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ScreenHeader from '../components/ScreenHeader';
 import { useNavigation } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
@@ -25,8 +24,6 @@ const MENU_ITEMS = [
     label: 'My Subscriptions',
     route: 'MySubscriptions',
   },
-  { icon: 'heart-outline', label: 'Saved Libraries', route: null },
-  { icon: 'help-circle-outline', label: 'Help & Support', route: null },
 ] as const;
 
 export default function ProfileScreen() {
@@ -34,6 +31,7 @@ export default function ProfileScreen() {
   const { profile, session } = useAuth();
   const { mode, colors, toggleTheme } = useTheme();
   const styles = useStyles(createStyles);
+  const Alert = useAppAlert();
 
   const name =
     profile?.full_name || session?.user.email?.split('@')[0] || 'Reader';
@@ -52,18 +50,23 @@ export default function ProfileScreen() {
   };
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScreenHeader title="My Profile" />
+    <SafeAreaView edges={['top']} style={styles.container}>
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
       >
+        <Text style={styles.eyebrow}>YOUR PERSONAL CORNER</Text>
+        <Text style={styles.title}>Account</Text>
+        <Text style={styles.pageSubtitle}>
+          A little more you. All in one place.
+        </Text>
         <View style={styles.profileCard}>
           <View style={styles.avatar}>
             <Text style={styles.avatarText}>{avatarInitial}</Text>
           </View>
           <View style={styles.profileInfo}>
+            <Text style={styles.memberLabel}>VRIDDHORA MEMBER</Text>
             <Text style={styles.name}>{name}</Text>
             <Text style={styles.email}>{email}</Text>
           </View>
@@ -94,7 +97,15 @@ export default function ProfileScreen() {
                 style={styles.menuItem}
                 activeOpacity={0.7}
                 onPress={
-                  item.route ? () => navigation.navigate(item.route) : undefined
+                  item.route
+                    ? () =>
+                        navigation.navigate('Bookings', {
+                          section:
+                            item.route === 'MySubscriptions'
+                              ? 'subscriptions'
+                              : 'passes',
+                        })
+                    : undefined
                 }
               >
                 <Icon
@@ -137,6 +148,26 @@ export default function ProfileScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    eyebrow: {
+      color: colors.primary,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 1.8,
+      marginTop: 16,
+    },
+    pageSubtitle: {
+      color: colors.subText,
+      fontSize: 14,
+      lineHeight: 21,
+      marginTop: 8,
+    },
+    memberLabel: {
+      color: colors.primary,
+      fontSize: 9,
+      fontWeight: '700',
+      letterSpacing: 1.3,
+      marginBottom: 6,
+    },
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
     contentContainer: {
@@ -155,16 +186,16 @@ const createStyles = (colors: ThemeColors) =>
       flexDirection: 'row',
       alignItems: 'center',
       marginTop: 24,
-      padding: 16,
-      borderRadius: 18,
-      backgroundColor: colors.surface,
+      padding: 22,
+      borderRadius: 26,
+      backgroundColor: colors.primaryLight,
       borderWidth: 1,
       borderColor: colors.border,
     },
     avatar: {
-      width: 58,
-      height: 58,
-      borderRadius: 29,
+      width: 64,
+      height: 64,
+      borderRadius: 23,
       backgroundColor: colors.primary,
       justifyContent: 'center',
       alignItems: 'center',
@@ -176,12 +207,12 @@ const createStyles = (colors: ThemeColors) =>
     menuCard: {
       marginTop: 20,
       paddingHorizontal: 16,
-      borderRadius: 18,
+      borderRadius: 24,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
     },
-    menuItem: { minHeight: 58, flexDirection: 'row', alignItems: 'center' },
+    menuItem: { minHeight: 68, flexDirection: 'row', alignItems: 'center' },
     menuIcon: { width: 32, textAlign: 'center' },
     menuText: {
       flex: 1,

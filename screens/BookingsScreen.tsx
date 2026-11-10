@@ -1,7 +1,7 @@
+import { useAppAlert } from '../context/DialogContext';
 import React, { useCallback, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -10,7 +10,8 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ScreenHeader from '../components/ScreenHeader';
+import BookingCalendar from '../components/BookingCalendar';
+import { bookingDateRange } from '../lib/bookingDates';
 import QRCode from 'react-native-qrcode-svg';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
@@ -31,17 +32,17 @@ const emptyStateContent: Record<
   Upcoming: {
     icon: 'book-outline',
     title: 'No upcoming bookings',
-    description: 'Your upcoming library sessions will appear here.',
+    description: 'Your upcoming bookings will appear here.',
   },
   Completed: {
     icon: 'checkmark-done-outline',
     title: 'No completed bookings',
-    description: 'Your completed library sessions will appear here.',
+    description: 'Your completed bookings will appear here.',
   },
   Cancelled: {
     icon: 'close-circle-outline',
     title: 'No cancelled bookings',
-    description: 'Your cancelled library sessions will appear here.',
+    description: 'Your cancelled bookings will appear here.',
   },
 };
 
@@ -60,25 +61,33 @@ function bucketFor(booking: Booking): BookingTab {
   return 'Upcoming';
 }
 
-export default function BookingsScreen() {
+export default function BookingsScreen({
+  embedded = false,
+}: {
+  embedded?: boolean;
+}) {
   const navigation = useNavigation<any>();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
+  const Alert = useAppAlert();
   const { session } = useAuth();
 
   const [activeTab, setActiveTab] = useState<BookingTab>('Upcoming');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [loadError, setError] = useState('');
 
   const loadBookings = useCallback(async () => {
     if (!session) {
       return;
     }
+    setError('');
     try {
       const data = await fetchBookings(session.user.id);
       setBookings(data);
-    } catch (error: any) {
-      console.error('Failed to load bookings:', error.message);
+    } catch {
+      setError('Could not load your day passes. Please try again.');
     } finally {
       setIsLoading(false);
     }
@@ -93,11 +102,11 @@ export default function BookingsScreen() {
   const handleCancel = (booking: Booking) => {
     Alert.alert(
       'Cancel booking',
-      'Are you sure you want to cancel this booking?',
+      'Cancel this booking? You receive a full refund before the reserved start, and no refund afterward.',
       [
-        { text: 'No', style: 'cancel' },
+        { text: 'Keep booking', style: 'cancel' },
         {
-          text: 'Yes, Cancel',
+          text: 'Cancel booking',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -118,8 +127,7 @@ export default function BookingsScreen() {
   const emptyState = emptyStateContent[activeTab];
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScreenHeader title="My Bookings" />
+    <SafeAreaView edges={embedded ? [] : ['top']} style={styles.container}>
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
@@ -132,12 +140,14 @@ export default function BookingsScreen() {
           />
         }
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>My Bookings</Text>
-          <Text style={styles.subtitle}>
-            Manage your library sessions and bookings.
-          </Text>
-        </View>
+        {!embedded && (
+          <View style={styles.header}>
+            <Text style={styles.title}>My Bookings</Text>
+            <Text style={styles.subtitle}>
+              Your upcoming visits and entry passes.
+            </Text>
+          </View>
+        )}
 
         <View style={styles.tabRow}>
           {tabs.map(tab => {
@@ -157,94 +167,158 @@ export default function BookingsScreen() {
           })}
         </View>
 
+        {!!loadError && (
+          <View accessibilityRole="alert" style={styles.errorCard}>
+            <Text style={{ color: colors.danger }}>{loadError}</Text>
+            <TouchableOpacity onPress={loadBookings} style={styles.retryAction}>
+              <Text style={{ color: colors.primary }}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        )}
         {isLoading ? (
           <ActivityIndicator
             size="large"
             color={colors.primary}
             style={styles.loader}
           />
-        ) : visibleBookings.length > 0 ? (
-          visibleBookings.map(booking => (
-            <View key={booking.id} style={styles.bookingCard}>
-              <View style={styles.bookingCardHeader}>
-                <Text style={styles.bookingLibraryName} numberOfLines={1}>
-                  {booking.library_name}
-                </Text>
-                <Text style={styles.bookingAmount}>
-                  ₹{booking.total_amount}.00
-                </Text>
-              </View>
+        ) : loadError ? null : visibleBookings.length > 0 ? (
+          visibleBookings.map(booking => {
+            const range = bookingDateRange(booking);
+            return (
+              <View key={booking.id} style={styles.bookingCard}>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={`Booking details for ${booking.library_name}`}
+                  accessibilityState={{ expanded: expandedId === booking.id }}
+                  onPress={() =>
+                    setExpandedId(current =>
+                      current === booking.id ? null : booking.id,
+                    )
+                  }
+                >
+                  <View style={styles.bookingCardHeader}>
+                    <Text style={styles.bookingLibraryName} numberOfLines={1}>
+                      {booking.library_name}
+                    </Text>
+                    <Text style={styles.bookingAmount}>
+                      ₹{Number(booking.total_amount).toFixed(2)}
+                    </Text>
+                  </View>
 
-              <View style={styles.bookingDetailRow}>
-                <Icon
-                  name="calendar-outline"
-                  size={13}
-                  color={colors.subText}
-                />
-                <Text style={styles.bookingDetailText}>
-                  {booking.date_label}
-                </Text>
-              </View>
-              <View style={styles.bookingDetailRow}>
-                <Icon name="time-outline" size={13} color={colors.subText} />
-                <Text style={styles.bookingDetailText}>
-                  {booking.time_label}
-                </Text>
-              </View>
-              <View style={styles.bookingDetailRow}>
-                <Icon name="body-outline" size={13} color={colors.subText} />
-                <Text style={styles.bookingDetailText}>
-                  {booking.seat_label}
-                </Text>
-              </View>
-              {booking.seat_number ? (
-                <View style={styles.bookingDetailRow}>
-                  <Icon name="pin-outline" size={13} color={colors.primary} />
-                  <Text
-                    style={[styles.bookingDetailText, styles.bookingSeatText]}
-                  >
-                    Seat {booking.seat_number}
-                  </Text>
-                </View>
-              ) : null}
+                  <View style={styles.bookingDetailRow}>
+                    <Icon
+                      name="calendar-outline"
+                      size={13}
+                      color={colors.subText}
+                    />
+                    <Text style={styles.bookingDetailText}>
+                      {booking.date_label}
+                    </Text>
+                  </View>
+                  <View style={styles.bookingDetailRow}>
+                    <Icon
+                      name="time-outline"
+                      size={13}
+                      color={colors.subText}
+                    />
+                    <Text style={styles.bookingDetailText}>
+                      {booking.time_label}
+                    </Text>
+                  </View>
+                  <View style={styles.expandRow}>
+                    <Text style={styles.expandLabel}>
+                      {expandedId === booking.id
+                        ? 'Hide details'
+                        : 'View dates & details'}
+                    </Text>
+                    <Icon
+                      name={
+                        expandedId === booking.id
+                          ? 'chevron-up'
+                          : 'chevron-down'
+                      }
+                      size={18}
+                      color={colors.primary}
+                    />
+                  </View>
+                </TouchableOpacity>
+                {expandedId === booking.id && (
+                  <View>
+                    <View style={styles.bookingDetailRow}>
+                      <Icon
+                        name="body-outline"
+                        size={13}
+                        color={colors.subText}
+                      />
+                      <Text style={styles.bookingDetailText}>
+                        {booking.seat_label}
+                      </Text>
+                    </View>
+                    {booking.seat_number ? (
+                      <View style={styles.bookingDetailRow}>
+                        <Icon
+                          name="pin-outline"
+                          size={13}
+                          color={colors.primary}
+                        />
+                        <Text
+                          style={[
+                            styles.bookingDetailText,
+                            styles.bookingSeatText,
+                          ]}
+                        >
+                          Seat {booking.seat_number}
+                        </Text>
+                      </View>
+                    ) : null}
 
-              <View style={styles.bookingFooterRow}>
-                <Text style={styles.bookingCode}>{booking.booking_code}</Text>
-                {activeTab === 'Upcoming' && (
-                  <TouchableOpacity onPress={() => handleCancel(booking)}>
-                    <Text style={styles.cancelLink}>Cancel</Text>
-                  </TouchableOpacity>
-                )}
-              </View>
-              {booking.payment_status && (
-                <Text style={styles.bookingDetailText}>
-                  Payment:{' '}
-                  {booking.payment_status.toLowerCase().replace(/_/g, ' ')}
-                </Text>
-              )}
-              {booking.status === 'confirmed' &&
-                booking.payment_status === 'CAPTURED' &&
-                booking.vendor_id && (
-                  <TouchableOpacity
-                    onPress={() =>
-                      navigation.navigate('Extension', {
-                        targetId: booking.id,
-                        vendorId: booking.vendor_id,
-                        libraryName: booking.library_name,
-                      })
-                    }
-                  >
-                    <Text style={styles.cancelLink}>Extend stay</Text>
-                  </TouchableOpacity>
-                )}
-              {booking.status === 'confirmed' &&
-                booking.payment_status === 'CAPTURED' && (
-                  <View style={styles.qrWrap}>
-                    <QRCode value={booking.booking_code} size={110} />
+                    {activeTab === 'Upcoming' && range && (
+                      <BookingCalendar {...range} />
+                    )}
+                    <View style={styles.bookingFooterRow}>
+                      <Text style={styles.bookingCode}>
+                        {booking.booking_code}
+                      </Text>
+                      {activeTab === 'Upcoming' && (
+                        <TouchableOpacity onPress={() => handleCancel(booking)}>
+                          <Text style={styles.cancelLink}>Cancel</Text>
+                        </TouchableOpacity>
+                      )}
+                    </View>
+                    {booking.payment_status && (
+                      <Text style={styles.bookingDetailText}>
+                        Payment:{' '}
+                        {booking.payment_status
+                          .toLowerCase()
+                          .replace(/_/g, ' ')}
+                      </Text>
+                    )}
+                    {booking.status === 'confirmed' &&
+                      booking.payment_status === 'CAPTURED' &&
+                      booking.vendor_id && (
+                        <TouchableOpacity
+                          onPress={() =>
+                            navigation.navigate('Extension', {
+                              targetId: booking.id,
+                              vendorId: booking.vendor_id,
+                              libraryName: booking.library_name,
+                            })
+                          }
+                        >
+                          <Text style={styles.cancelLink}>Extend stay</Text>
+                        </TouchableOpacity>
+                      )}
+                    {booking.status === 'confirmed' &&
+                      booking.payment_status === 'CAPTURED' && (
+                        <View style={styles.qrWrap}>
+                          <QRCode value={booking.booking_code} size={110} />
+                        </View>
+                      )}
                   </View>
                 )}
-            </View>
-          ))
+              </View>
+            );
+          })
         ) : (
           <View style={styles.emptyCard}>
             <View style={styles.iconCircle}>
@@ -256,9 +330,9 @@ export default function BookingsScreen() {
             <TouchableOpacity
               style={styles.exploreButton}
               activeOpacity={0.8}
-              onPress={() => navigation.navigate('Explore')}
+              onPress={() => navigation.navigate('Home')}
             >
-              <Text style={styles.exploreButtonText}>Explore Libraries</Text>
+              <Text style={styles.exploreButtonText}>Explore Spaces</Text>
             </TouchableOpacity>
           </View>
         )}
@@ -269,6 +343,28 @@ export default function BookingsScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    passEyebrow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 6,
+      marginBottom: 12,
+    },
+    passEyebrowText: {
+      color: colors.primary,
+      fontSize: 9,
+      fontWeight: '700',
+      letterSpacing: 1.4,
+    },
+    expandRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      alignItems: 'center',
+      minHeight: 48,
+      marginTop: 4,
+    },
+    expandLabel: { color: colors.primary, fontSize: 12, fontWeight: '600' },
+    errorCard: { padding: 16, gap: 12 },
+    retryAction: { minHeight: 48, justifyContent: 'center' },
     qrWrap: {
       marginTop: 12,
       padding: 12,
@@ -316,8 +412,8 @@ const createStyles = (colors: ThemeColors) =>
     loader: { marginTop: 40 },
     bookingCard: {
       marginTop: 16,
-      padding: 16,
-      borderRadius: 18,
+      padding: 20,
+      borderRadius: 24,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
@@ -350,6 +446,7 @@ const createStyles = (colors: ThemeColors) =>
       marginTop: 12,
       paddingTop: 12,
       borderTopWidth: 1,
+      borderStyle: 'dashed',
       borderTopColor: colors.border,
     },
     bookingCode: {

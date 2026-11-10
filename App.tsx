@@ -7,6 +7,7 @@ import { StatusBar } from 'react-native';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { AuthProvider } from './context/AuthContext';
 import { ThemeProvider, useTheme } from './context/ThemeContext';
+import { DialogProvider } from './context/DialogContext';
 import AppNavigator from './navigation/AppNavigator';
 
 function AppContent() {
@@ -14,10 +15,14 @@ function AppContent() {
 
   return (
     <>
-      <StatusBar barStyle={mode === 'dark' ? 'light-content' : 'dark-content'} />
-      <AuthProvider>
-        <AppNavigator />
-      </AuthProvider>
+      <StatusBar
+        barStyle={mode === 'dark' ? 'light-content' : 'dark-content'}
+      />
+      <DialogProvider>
+        <AuthProvider>
+          <AppNavigator />
+        </AuthProvider>
+      </DialogProvider>
     </>
   );
 }

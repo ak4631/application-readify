@@ -1,15 +1,25 @@
 import React, { useState } from 'react';
-import { StyleSheet, TextInput, TouchableOpacity, View, type TextInputProps } from 'react-native';
+import {
+  StyleSheet,
+  TextInput,
+  TouchableOpacity,
+  View,
+  type TextInputProps,
+} from 'react-native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useTheme } from '../context/ThemeContext';
-import { Radius } from '../constants/radius';
 import type { ThemeColors } from '../constants/colors';
 
 type Props = TextInputProps & {
   icon: string;
 };
 
-export default function InputField({ icon, secureTextEntry, style, ...rest }: Props) {
+export default function InputField({
+  icon,
+  secureTextEntry,
+  style,
+  ...rest
+}: Props) {
   const { colors } = useTheme();
   const styles = createStyles(colors);
   const [isSecureVisible, setIsSecureVisible] = useState(false);
@@ -17,7 +27,12 @@ export default function InputField({ icon, secureTextEntry, style, ...rest }: Pr
 
   return (
     <View style={styles.container}>
-      <Icon name={icon} size={19} color={colors.placeholder} style={styles.icon} />
+      <Icon
+        name={icon}
+        size={19}
+        color={colors.placeholder}
+        style={styles.icon}
+      />
       <TextInput
         style={[styles.input, style]}
         placeholderTextColor={colors.placeholder}
@@ -49,10 +64,10 @@ const createStyles = (colors: ThemeColors) =>
       height: 56,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: Radius.md,
+      borderRadius: 18,
       paddingHorizontal: 16,
       marginBottom: 16,
-      backgroundColor: colors.surface,
+      backgroundColor: colors.surfaceSubtle,
     },
     icon: { marginRight: 10 },
     input: {

@@ -2,7 +2,6 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useServiceCatalog } from '../hooks/useServiceCatalog';
 import {
   ActivityIndicator,
-  Image,
   ScrollView,
   StyleSheet,
   Text,
@@ -13,17 +12,19 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context';
 import Icon from 'react-native-vector-icons/Ionicons';
 import { useNavigation, useRoute } from '@react-navigation/native';
-import ScreenHeader from '../components/ScreenHeader';
 import { useTheme } from '../context/ThemeContext';
 import { useStyles } from '../hooks/useStyles';
 import { Radius } from '../constants/radius';
 import { supabase } from '../lib/supabase';
-import { getLibraryImage } from '../constants/dummyImages';
+import ListingImage from '../components/ListingImage';
 import type { ThemeColors } from '../constants/colors';
-import { CATEGORIES } from '../constants/categories';
+import BrandHero from '../components/BrandHero';
+import CategoryPicker from '../components/CategoryPicker';
+import { CATEGORIES, categoryName } from '../constants/categories';
 import type { LibraryCategory } from '../constants/categories';
 import { useAuth } from '../context/AuthContext';
-import { fetchSavedLocation } from '../lib/location';
+import { locationLabel } from '../lib/location';
+import { useDiscoveryLocation } from '../hooks/useDiscoveryLocation';
 import { fetchNearbyVendors } from '../lib/discovery';
 
 export type { LibraryCategory };
@@ -53,44 +54,29 @@ export default function ExploreScreen() {
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
   const { session } = useAuth();
-  const initialCategory = route.params?.initialCategory as
-    | LibraryCategory
-    | undefined;
+  const initialCategory = (route.params?.initialCategory ??
+    route.params?.categoryId) as LibraryCategory | undefined;
   const services = useServiceCatalog();
 
   const [searchQuery, setSearchQuery] = useState('');
+  const [reload, setReload] = useState(0);
   const [selectedCategory, setSelectedCategory] = useState<
     LibraryCategory | 'all'
   >(initialCategory ?? 'all');
   const [libraries, setLibraries] = useState<Library[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [userLocation, setUserLocation] = useState<{
-    latitude: number;
-    longitude: number;
-  } | null>(null);
-
-  useEffect(() => {
-    if (!session) {
-      return;
-    }
-    fetchSavedLocation(session.user.id)
-      .then(saved => {
-        if (saved) {
-          setUserLocation({
-            latitude: saved.latitude,
-            longitude: saved.longitude,
-          });
-        }
-      })
-      .catch(() => {});
-  }, [session]);
+  const {
+    location: userLocation,
+    loading: locating,
+    message: locationMessage,
+  } = useDiscoveryLocation(session?.user.id);
 
   // Fallback: full directory listing, used until a saved location is known.
   // The nearby-aware effect below takes over (and this one stops re-running
   // real work) once userLocation is set.
   useEffect(() => {
-    if (userLocation) {
+    if (userLocation || locating) {
       return;
     }
     let isMounted = true;
@@ -133,11 +119,7 @@ export default function ExploreScreen() {
         );
         setLibraries([]);
         setErrorMessage(
-          `Supabase Error\n\nMessage: ${
-            error.message || 'Unknown error'
-          }\n\nCode: ${error.code || 'N/A'}\n\nDetails: ${
-            error.details || 'N/A'
-          }\n\nHint: ${error.hint || 'N/A'}`,
+          'Could not load spaces. Please check your connection and try again.',
         );
       } else {
         setLibraries((data ?? []) as Library[]);
@@ -151,7 +133,7 @@ export default function ExploreScreen() {
     return () => {
       isMounted = false;
     };
-  }, [userLocation]);
+  }, [userLocation, locating, reload]);
 
   // Nearby-aware listing, server-side category filter + distance, once a
   // saved location is known.
@@ -176,30 +158,32 @@ export default function ExploreScreen() {
           return;
         }
         setLibraries(
-          nearby.map(v => ({
-            id: v.id,
-            name: v.name,
-            slug: v.slug,
-            description: v.description,
-            address_line_1: v.address_line_1,
-            address_line_2: v.address_line_2,
-            locality: null,
-            city: v.city,
-            state: v.state,
-            postal_code: v.postal_code,
-            website_url: v.website_url,
-            status: 'published',
-            category: v.category,
-            is_active: true,
-            image_url: v.image_url,
-            distance_km: v.distance_km,
-          })),
+          nearby
+            .sort((a, b) => a.distance_km - b.distance_km)
+            .map(v => ({
+              id: v.id,
+              name: v.name,
+              slug: v.slug,
+              description: v.description,
+              address_line_1: v.address_line_1,
+              address_line_2: v.address_line_2,
+              locality: null,
+              city: v.city,
+              state: v.state,
+              postal_code: v.postal_code,
+              website_url: v.website_url,
+              status: 'published',
+              category: v.category,
+              is_active: true,
+              image_url: v.image_url,
+              distance_km: v.distance_km,
+            })),
         );
       })
-      .catch((error: any) => {
+      .catch(() => {
         if (isMounted) {
           setLibraries([]);
-          setErrorMessage(error?.message ?? 'Could not load nearby listings.');
+          setErrorMessage('Could not load nearby spaces. Please try again.');
         }
       })
       .finally(() => {
@@ -211,7 +195,7 @@ export default function ExploreScreen() {
     return () => {
       isMounted = false;
     };
-  }, [userLocation, selectedCategory]);
+  }, [userLocation, selectedCategory, reload]);
 
   const filteredLibraries = useMemo(() => {
     const query = searchQuery.trim().toLowerCase();
@@ -241,14 +225,11 @@ export default function ExploreScreen() {
     });
   }, [libraries, searchQuery, selectedCategory]);
 
-  const handleCategoryPress = (category: LibraryCategory) => {
-    setSelectedCategory(current => (current === category ? 'all' : category));
-  };
-
   const openLibrary = (library: Library) => {
     navigation.navigate('LibraryDetails', {
       libraryId: library.id,
       libraryName: library.name,
+      category: library.category,
     });
   };
 
@@ -272,20 +253,66 @@ export default function ExploreScreen() {
       .join(', ');
 
   return (
-    <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Explore" />
+    <SafeAreaView edges={['top']} style={styles.container}>
+      <View style={styles.topBar}>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Change location"
+          style={styles.locationHeader}
+          onPress={() =>
+            navigation.navigate('LocationPermission', {
+              returnTo: 'Home',
+              initialCategory: selectedCategory,
+            })
+          }
+        >
+          <Icon name="location" size={24} color={colors.primary} />
+          <View style={styles.locationCopy}>
+            <Text style={styles.locationEyebrow}>
+              {locating
+                ? 'Finding your location...'
+                : userLocation?.source === 'manual'
+                ? 'SELECTED LOCATION'
+                : userLocation
+                ? 'NEAR YOU'
+                : 'LOCATION'}
+            </Text>
+            <Text style={styles.locationTitle} numberOfLines={1}>
+              {locationLabel(userLocation)}
+            </Text>
+          </View>
+          {locating ? (
+            <ActivityIndicator color={colors.primary} />
+          ) : (
+            <Icon name="chevron-down" size={20} color={colors.primary} />
+          )}
+        </TouchableOpacity>
+        <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel="Notifications"
+          style={styles.notificationAction}
+          onPress={() => navigation.navigate('Notifications')}
+        >
+          <Icon name="notifications-outline" size={22} color={colors.primary} />
+        </TouchableOpacity>
+      </View>
       <ScrollView
         style={styles.content}
         contentContainerStyle={styles.contentContainer}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
-        <View style={styles.header}>
-          <Text style={styles.title}>Explore</Text>
-          <Text style={styles.subtitle}>
-            Discover libraries and reading spaces around you.
+        {!!locationMessage && (
+          <Text accessibilityRole="alert" style={styles.locationNotice}>
+            {locationMessage}
           </Text>
-        </View>
+        )}
+        <BrandHero
+          eyebrow="VRIDDHORA / MADE FOR YOUR EVERYDAY"
+          title={'Find your space.\nMake it your own.'}
+          subtitle="A place to focus, grow, and do your thing."
+          icon="leaf-outline"
+        />
 
         <View style={styles.searchContainer}>
           <Icon
@@ -298,7 +325,7 @@ export default function ExploreScreen() {
             style={styles.searchInput}
             value={searchQuery}
             onChangeText={setSearchQuery}
-            placeholder="Search libraries, areas or cities"
+            placeholder="Search spaces, areas or cities"
             placeholderTextColor={colors.placeholder}
             returnKeyType="search"
             autoCapitalize="none"
@@ -315,72 +342,57 @@ export default function ExploreScreen() {
           )}
         </View>
 
-        <Text style={styles.sectionTitle}>Explore by Type</Text>
-
-        <View style={styles.categoryGrid}>
-          {CATEGORIES.map(category => {
-            const isSelected = selectedCategory === category.id;
-
-            return (
-              <TouchableOpacity
-                key={category.id}
-                style={[
-                  styles.categoryCard,
-                  isSelected && styles.selectedCategoryCard,
-                ]}
-                activeOpacity={0.7}
-                onPress={() => handleCategoryPress(category.id)}
-              >
-                <Icon
-                  name={category.icon}
-                  size={26}
-                  color={isSelected ? colors.primary : colors.subText}
-                  style={styles.categoryIcon}
-                />
-                <Text
-                  style={[
-                    styles.categoryText,
-                    isSelected && styles.selectedCategoryText,
-                  ]}
-                >
-                  {category.name}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
-
+        <CategoryPicker
+          selected={selectedCategory}
+          onSelect={setSelectedCategory}
+          enabled={services.enabled}
+          loading={services.loading || services.error}
+        />
         <View style={styles.resultsHeader}>
           <Text style={styles.sectionTitle}>
             {selectedCategory === 'all'
-              ? 'Popular Near You'
+              ? userLocation
+                ? 'Nearby spaces'
+                : 'Explore all spaces'
               : CATEGORIES.find(c => c.id === selectedCategory)?.name}
           </Text>
-          {selectedCategory !== 'all' && (
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={() => setSelectedCategory('all')}
-            >
-              <Text style={styles.clearFilterText}>Clear filter</Text>
-            </TouchableOpacity>
-          )}
         </View>
 
-        {selectedCategory !== 'all' &&
-        !services.loading &&
-        !services.enabled(selectedCategory) ? (
+        {services.error ? (
           <View style={styles.stateCard}>
-            <Text style={styles.stateTitle}>Coming Soon in Your Area</Text>
+            <Text style={styles.stateTitle}>
+              Could not check service availability
+            </Text>
             <Text style={styles.stateText}>
-              This service is not available for booking yet.
+              Please try again to see which spaces are available.
+            </Text>
+            <TouchableOpacity
+              style={styles.resetButton}
+              onPress={services.retry}
+            >
+              <Text style={styles.resetButtonText}>Try again</Text>
+            </TouchableOpacity>
+          </View>
+        ) : services.loading ? (
+          <ActivityIndicator color={colors.primary} />
+        ) : selectedCategory !== 'all' &&
+          !services.loading &&
+          !services.enabled(selectedCategory) ? (
+          <View style={styles.stateCard}>
+            <Text style={styles.stateTitle}>
+              {categoryName(selectedCategory)} coming soon
+            </Text>
+            <Text style={styles.stateText}>
+              We are getting this service ready. Choose another category to
+              explore available spaces.
             </Text>
           </View>
-        ) : isLoading ? (
+        ) : isLoading || locating ? (
           <View style={styles.stateCard}>
             <ActivityIndicator size="large" color={colors.primary} />
-            <Text style={styles.stateTitle}>Finding libraries</Text>
+            <Text style={styles.stateTitle}>Finding spaces</Text>
             <Text style={styles.stateText}>
-              Please wait while we load available libraries.
+              Please wait while we load available spaces.
             </Text>
           </View>
         ) : errorMessage ? (
@@ -399,7 +411,7 @@ export default function ExploreScreen() {
               activeOpacity={0.8}
               onPress={() => {
                 setSearchQuery('');
-                setSelectedCategory('all');
+                setReload(value => value + 1);
               }}
             >
               <Text style={styles.resetButtonText}>Try Again</Text>
@@ -417,13 +429,18 @@ export default function ExploreScreen() {
                 activeOpacity={0.85}
                 onPress={() => openLibrary(library)}
               >
-                <Image
-                  source={{
-                    uri: library.image_url ?? getLibraryImage(library.id),
-                  }}
-                  style={styles.imagePlaceholder}
-                  resizeMode="cover"
-                />
+                <View>
+                  <ListingImage
+                    uri={library.image_url}
+                    category={library.category}
+                    style={styles.imagePlaceholder}
+                  />
+                  <View style={styles.photoBadge}>
+                    <Text style={styles.photoBadgeText}>
+                      {categoryName(library.category)}
+                    </Text>
+                  </View>
+                </View>
 
                 <View style={styles.libraryInfo}>
                   <View style={styles.libraryTopRow}>
@@ -433,7 +450,7 @@ export default function ExploreScreen() {
                       </Text>
                       <Text style={styles.libraryCategory}>
                         {CATEGORIES.find(c => c.id === library.category)
-                          ?.name ?? 'Library'}
+                          ?.name ?? 'Space'}
                       </Text>
                     </View>
                     <Icon
@@ -463,9 +480,7 @@ export default function ExploreScreen() {
                   )}
 
                   <View style={styles.viewDetailsRow}>
-                    <Text style={styles.viewDetailsText}>
-                      View library details
-                    </Text>
+                    <Text style={styles.viewDetailsText}>View details</Text>
                     <Icon
                       name="arrow-forward"
                       size={14}
@@ -481,16 +496,16 @@ export default function ExploreScreen() {
             <View style={styles.noResultsIconCircle}>
               <Icon name="search" size={28} color={colors.primary} />
             </View>
-            <Text style={styles.noResultsTitle}>No libraries found</Text>
+            <Text style={styles.noResultsTitle}>No spaces found</Text>
             <Text style={styles.noResultsText}>
-              Try a different search or explore another category.
+              Try a different search or change your location.
             </Text>
             <TouchableOpacity
               style={styles.resetButton}
               activeOpacity={0.8}
               onPress={() => {
                 setSearchQuery('');
-                setSelectedCategory('all');
+                setReload(value => value + 1);
               }}
             >
               <Text style={styles.resetButtonText}>Reset Search</Text>
@@ -504,6 +519,44 @@ export default function ExploreScreen() {
 
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    topBar: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginHorizontal: 20,
+    },
+    locationHeader: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      minHeight: 64,
+      paddingVertical: 12,
+    },
+    locationCopy: { flex: 1 },
+    locationEyebrow: { color: colors.subText, fontSize: 11, fontWeight: '600' },
+    locationTitle: {
+      color: colors.text,
+      fontSize: 17,
+      fontWeight: '700',
+      marginTop: 4,
+    },
+    locationNotice: {
+      color: colors.subText,
+      fontSize: 13,
+      lineHeight: 20,
+      marginBottom: 12,
+    },
+    discoveryActions: { flexDirection: 'row', gap: 12 },
+    discoveryAction: { flex: 1, minHeight: 48 },
+    notificationAction: {
+      width: 48,
+      height: 48,
+      borderRadius: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: colors.primaryLight,
+    },
     container: { flex: 1, backgroundColor: colors.background },
     content: { flex: 1 },
     contentContainer: {
@@ -524,16 +577,38 @@ const createStyles = (colors: ThemeColors) =>
       lineHeight: 24,
       color: colors.subText,
     },
+    photoBadge: {
+      position: 'absolute',
+      top: 14,
+      left: 14,
+      borderRadius: 12,
+      backgroundColor: colors.surface,
+      paddingVertical: 7,
+      paddingHorizontal: 11,
+    },
+    photoBadgeText: {
+      color: colors.text,
+      fontSize: 10,
+      fontWeight: '700',
+      letterSpacing: 0.4,
+    },
     searchContainer: {
       flexDirection: 'row',
       alignItems: 'center',
-      height: 54,
-      marginTop: 24,
+      minHeight: 58,
+      marginTop: -16,
+      marginHorizontal: 12,
+      marginBottom: 8,
+      elevation: 4,
+      shadowColor: colors.primaryDark,
+      shadowOffset: { width: 0, height: 4 },
+      shadowOpacity: 0.08,
+      shadowRadius: 12,
       paddingHorizontal: 16,
-      backgroundColor: colors.surfaceSubtle,
+      backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
-      borderRadius: Radius.lg,
+      borderRadius: 20,
     },
     searchIcon: { marginRight: 10 },
     searchInput: {
@@ -601,20 +676,25 @@ const createStyles = (colors: ThemeColors) =>
       color: colors.primary,
     },
     libraryCard: {
-      marginBottom: 16,
+      marginBottom: 22,
       overflow: 'hidden',
-      borderRadius: Radius.lg,
+      borderRadius: 26,
+      elevation: 2,
+      shadowColor: colors.primaryDark,
+      shadowOpacity: 0.06,
+      shadowOffset: { width: 0, height: 4 },
+      shadowRadius: 12,
       backgroundColor: colors.surface,
       borderWidth: 1,
       borderColor: colors.border,
     },
     imagePlaceholder: {
-      height: 130,
+      height: 176,
       backgroundColor: colors.primaryLight,
       justifyContent: 'center',
       alignItems: 'center',
     },
-    libraryInfo: { padding: 16 },
+    libraryInfo: { padding: 20 },
     libraryTopRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -649,8 +729,12 @@ const createStyles = (colors: ThemeColors) =>
     viewDetailsRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 6,
-      marginTop: 14,
+      gap: 8,
+      marginTop: 16,
+      paddingTop: 14,
+      borderTopWidth: 1,
+      borderColor: colors.border,
+      justifyContent: 'space-between',
     },
     viewDetailsText: { fontSize: 14, fontWeight: '700', color: colors.primary },
     stateCard: {

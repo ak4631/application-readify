@@ -1,6 +1,10 @@
-import React, { useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
+  KeyboardAvoidingView,
+  Linking,
+  Platform,
+  ScrollView,
   StyleSheet,
   Text,
   TextInput,
@@ -8,23 +12,27 @@ import {
   View,
 } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
-import ScreenHeader from '../components/ScreenHeader';
-import { useNavigation, useRoute } from '@react-navigation/native';
+import {
+  useFocusEffect,
+  useNavigation,
+  useRoute,
+} from '@react-navigation/native';
 import Icon from 'react-native-vector-icons/Ionicons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { useStyles } from '../hooks/useStyles';
+import ScreenHeader from '../components/ScreenHeader';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import { useStyles } from '../hooks/useStyles';
 import {
-  requestLocationPermission,
-  getCurrentPosition,
+  detectAndSaveLocation,
+  clearUserLocation,
+  fetchSavedLocation,
+  locationLabel,
   saveUserLocation,
+  type SavedLocation,
 } from '../lib/location';
-import {
-  searchAddress,
-  reverseGeocode,
-  type GeocodeResult,
-} from '../lib/geocoding';
+import { searchAddress, type GeocodeResult } from '../lib/geocoding';
+import { locationPromptKey } from '../hooks/useDiscoveryLocation';
 import type { ThemeColors } from '../constants/colors';
 
 export const LOCATION_PROMPT_SHOWN_KEY = 'readify:locationPromptShown';
@@ -32,297 +40,406 @@ export const LOCATION_PROMPT_SHOWN_KEY = 'readify:locationPromptShown';
 export default function LocationPermissionScreen() {
   const navigation = useNavigation<any>();
   const route = useRoute<any>();
+  const { session } = useAuth();
   const { colors } = useTheme();
   const styles = useStyles(createStyles);
-  const { session } = useAuth();
-  // Reached either from onboarding (Home navigates here automatically, and
-  // "done" should replace Home so this screen doesn't linger in the back
-  // stack) or from an in-app "change location" action (e.g. Map's header
-  // button, with returnTo set) -- in which case "done" should just return
-  // to that screen, now showing the freshly saved location.
-  const returnTo = route.params?.returnTo as string | undefined;
-
-  const [isLocating, setIsLocating] = useState(false);
-  const [showManualSearch, setShowManualSearch] = useState(false);
+  const [saved, setSaved] = useState<SavedLocation | null>(null);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState<GeocodeResult[]>([]);
-  const [isSearching, setIsSearching] = useState(false);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [searching, setSearching] = useState(false);
+  const [searched, setSearched] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [showSettings, setShowSettings] = useState(false);
+  const mounted = useRef(true);
+  const locked = useRef(false);
+  useEffect(() => {
+    mounted.current = true;
+    return () => {
+      mounted.current = false;
+    };
+  }, []);
+  useFocusEffect(
+    useCallback(() => {
+      let active = true;
+      if (session)
+        fetchSavedLocation(session.user.id)
+          .then(value => {
+            if (active) setSaved(value);
+          })
+          .catch(() => {});
+      return () => {
+        active = false;
+      };
+    }, [session]),
+  );
+  useEffect(() => {
+    let active = true;
+    setResults([]);
+    setSearched(false);
+    setSearching(false);
+    if (query.trim().length < 3 || busy) return;
+    setSearching(true);
+    const timer = setTimeout(() => {
+      searchAddress(query, saved ?? undefined)
+        .then(data => {
+          if (active) {
+            setResults(data);
+            setSearched(true);
+          }
+        })
+        .catch(() => {
+          if (active)
+            setError(
+              'Address search is unavailable. Try another search or use your current location.',
+            );
+        })
+        .finally(() => {
+          if (active) setSearching(false);
+        });
+    }, 350);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [query, busy, saved]);
 
-  const finish = async () => {
+  async function finish() {
     await AsyncStorage.setItem(LOCATION_PROMPT_SHOWN_KEY, 'true');
-    if (returnTo && navigation.canGoBack()) {
-      navigation.goBack();
-    } else {
-      navigation.replace('Home');
-    }
-  };
-
-  const handleUseCurrentLocation = async () => {
-    if (!session) {
-      return;
-    }
-    setErrorMessage(null);
-    setIsLocating(true);
+    if (session)
+      await AsyncStorage.setItem(locationPromptKey(session.user.id), 'true');
+    if (!mounted.current) return;
+    if (route.params?.returnTo && navigation.canGoBack()) navigation.goBack();
+    else navigation.replace('Main', { screen: 'Home' });
+  }
+  async function useGps() {
+    if (!session || locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError('');
+    setShowSettings(false);
     try {
-      const status = await requestLocationPermission();
-      if (status !== 'granted') {
-        setErrorMessage(
-          'Location permission was denied. You can set your location manually instead.',
-        );
-        setShowManualSearch(true);
-        return;
-      }
-
-      const position = await getCurrentPosition();
-      const address = await reverseGeocode(
-        position.latitude,
-        position.longitude,
-      ).catch(() => null);
-
-      await saveUserLocation(session.user.id, {
-        ...position,
-        address,
-        source: 'gps',
-        permissionStatus: 'granted',
-      });
-
-      await finish();
-    } catch {
-      setErrorMessage(
-        'Could not get your current location. Please try again or set it manually.',
+      await AsyncStorage.setItem(locationPromptKey(session.user.id), 'true');
+      const detected = await detectAndSaveLocation(
+        session.user.id,
+        () => mounted.current,
       );
-      setShowManualSearch(true);
+      if (detected) await finish();
+    } catch (failure: any) {
+      if (mounted.current) {
+        setError(
+          failure.message?.startsWith('Location access')
+            ? failure.message
+            : 'Could not detect your location. Turn on device location, try again, or search manually.',
+        );
+        setShowSettings(true);
+      }
     } finally {
-      setIsLocating(false);
+      locked.current = false;
+      if (mounted.current) setBusy(false);
     }
-  };
-
-  const handleQueryChange = async (value: string) => {
-    setQuery(value);
-    if (value.trim().length < 3) {
-      setResults([]);
-      return;
-    }
-    setIsSearching(true);
-    try {
-      setResults(await searchAddress(value));
-    } finally {
-      setIsSearching(false);
-    }
-  };
-
-  const handleSelectResult = async (result: GeocodeResult) => {
-    if (!session) {
-      return;
-    }
+  }
+  async function select(result: GeocodeResult) {
+    if (!session || locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError('');
     try {
       await saveUserLocation(session.user.id, {
-        latitude: result.latitude,
-        longitude: result.longitude,
+        ...result,
         address: result.label,
         source: 'manual',
-        permissionStatus: 'undetermined',
+        permissionStatus: saved?.permission_status ?? 'undetermined',
       });
       await finish();
     } catch {
-      setErrorMessage('Could not save that location. Please try again.');
+      if (mounted.current)
+        setError('Could not save this location. Please try again.');
+    } finally {
+      locked.current = false;
+      if (mounted.current) setBusy(false);
     }
-  };
+  }
 
-  const handleSkip = async () => {
-    await finish();
-  };
+  async function clearLocation() {
+    if (!session || locked.current) return;
+    locked.current = true;
+    setBusy(true);
+    setError('');
+    try {
+      await clearUserLocation(session.user.id);
+      setSaved(null);
+      await finish();
+    } catch {
+      if (mounted.current)
+        setError('Could not clear your selected location. Please try again.');
+    } finally {
+      locked.current = false;
+      if (mounted.current) setBusy(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScreenHeader title="Location" />
-      <View style={styles.content}>
-        <View style={styles.iconCircle}>
-          <Icon name="location" size={36} color={colors.onPrimary} />
-        </View>
-
-        <Text style={styles.title}>Find spaces near you</Text>
-        <Text style={styles.subtitle}>
-          Vriddhora uses your location to show nearby libraries, gyms, exam hubs
-          and co-working spaces, along with distance from where you are.
-        </Text>
-
-        {errorMessage && <Text style={styles.errorText}>{errorMessage}</Text>}
-
-        <TouchableOpacity
-          style={styles.primaryButton}
-          activeOpacity={0.85}
-          onPress={handleUseCurrentLocation}
-          disabled={isLocating}
+      <ScreenHeader title="Choose your location" />
+      <KeyboardAvoidingView
+        style={styles.container}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <ScrollView
+          keyboardShouldPersistTaps="handled"
+          contentContainerStyle={styles.content}
         >
-          {isLocating ? (
-            <ActivityIndicator color={colors.onPrimary} />
-          ) : (
-            <>
-              <Icon name="locate" size={18} color={colors.onPrimary} />
-              <Text style={styles.primaryButtonText}>
-                Use my current location
-              </Text>
-            </>
-          )}
-        </TouchableOpacity>
-
-        <TouchableOpacity
-          style={styles.secondaryButton}
-          activeOpacity={0.85}
-          onPress={() => setShowManualSearch(v => !v)}
-        >
-          <Text style={styles.secondaryButtonText}>
-            Enter location manually
+          <Text style={styles.title}>Where are you looking?</Text>
+          <Text style={styles.subtitle}>
+            Choose a locality to see the closest spaces first.
           </Text>
-        </TouchableOpacity>
-
-        {showManualSearch && (
-          <View style={styles.searchSection}>
-            <View style={styles.searchInputRow}>
-              <Icon
-                name="search"
-                size={18}
-                color={colors.subText}
-                style={styles.searchIcon}
-              />
-              <TextInput
-                style={styles.searchInput}
-                value={query}
-                onChangeText={handleQueryChange}
-                placeholder="Search for your city or area"
-                placeholderTextColor={colors.placeholder}
-              />
-              {isSearching && (
-                <ActivityIndicator size="small" color={colors.primary} />
-              )}
-            </View>
-
-            {results.map((result, index) => (
+          <View style={styles.searchBox}>
+            <Icon name="search-outline" size={22} color={colors.subText} />
+            <TextInput
+              accessibilityLabel="Search locality or address"
+              style={styles.input}
+              placeholder="Search locality, landmark or city"
+              placeholderTextColor={colors.placeholder}
+              value={query}
+              editable={!busy}
+              autoCorrect={false}
+              onChangeText={value => {
+                setQuery(value);
+                setError('');
+              }}
+            />
+            {!!query && (
               <TouchableOpacity
-                key={index}
-                style={styles.resultRow}
-                activeOpacity={0.7}
-                onPress={() => handleSelectResult(result)}
+                accessibilityRole="button"
+                accessibilityLabel="Clear location search"
+                disabled={busy}
+                style={styles.clear}
+                onPress={() => setQuery('')}
               >
-                <Icon
-                  name="location-outline"
-                  size={16}
-                  color={colors.subText}
-                />
-                <Text style={styles.resultText} numberOfLines={2}>
-                  {result.label}
-                </Text>
+                <Icon name="close-circle" size={22} color={colors.subText} />
               </TouchableOpacity>
-            ))}
+            )}
           </View>
-        )}
-
-        <TouchableOpacity
-          style={styles.skipButton}
-          activeOpacity={0.7}
-          onPress={handleSkip}
-        >
-          <Text style={styles.skipButtonText}>Skip for now</Text>
-        </TouchableOpacity>
-      </View>
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={busy}
+            style={styles.gps}
+            onPress={useGps}
+          >
+            <Icon name="locate-outline" size={24} color={colors.primary} />
+            <View style={styles.copy}>
+              <Text style={styles.gpsTitle}>
+                {saved?.source === 'manual'
+                  ? 'Reset to current location'
+                  : 'Use my current location'}
+              </Text>
+              <Text style={styles.hint}>
+                Detect automatically using your phone
+              </Text>
+            </View>
+            {busy ? (
+              <ActivityIndicator color={colors.primary} />
+            ) : (
+              <Icon name="chevron-forward" size={20} color={colors.primary} />
+            )}
+          </TouchableOpacity>
+          <TouchableOpacity
+            accessibilityRole="button"
+            disabled={busy}
+            style={styles.mapAction}
+            onPress={() =>
+              route.params?.returnTo === 'Map' && navigation.canGoBack()
+                ? navigation.goBack()
+                : navigation.replace('Map', {
+                    initialCategory: route.params?.initialCategory ?? 'all',
+                  })
+            }
+          >
+            <Icon name="map-outline" size={24} color={colors.primary} />
+            <View style={styles.copy}>
+              <Text style={styles.gpsTitle}>View map</Text>
+              <Text style={styles.hint}>
+                Explore spaces around your selected area
+              </Text>
+            </View>
+            <Icon name="chevron-forward" size={20} color={colors.primary} />
+          </TouchableOpacity>
+          {!!error && (
+            <Text accessibilityRole="alert" style={styles.error}>
+              {error}
+            </Text>
+          )}
+          {showSettings && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              style={styles.settings}
+              onPress={() =>
+                Linking.openSettings().catch(() =>
+                  setError(
+                    'Open your phone settings and enable location for Vriddhora.',
+                  ),
+                )
+              }
+            >
+              <Text style={styles.gpsTitle}>Open location permissions</Text>
+            </TouchableOpacity>
+          )}
+          {saved && !query && (
+            <View style={styles.saved}>
+              <Text style={styles.section}>SELECTED LOCATION</Text>
+              <Text style={styles.savedTitle}>{locationLabel(saved)}</Text>
+              <Text style={styles.subtitle}>
+                {saved.address ?? 'Current GPS location'}
+              </Text>
+              <Text style={styles.hint}>
+                {saved.source === 'manual'
+                  ? 'Manually selected. Kept until you change or reset it.'
+                  : 'Detected from your phone. Use current location to refresh it.'}
+              </Text>
+            </View>
+          )}
+          {saved && (
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={busy}
+              style={styles.clearLocation}
+              onPress={clearLocation}
+            >
+              <Icon
+                name="close-circle-outline"
+                size={22}
+                color={colors.danger}
+              />
+              <View style={styles.copy}>
+                <Text style={styles.clearTitle}>Clear selected location</Text>
+                <Text style={styles.hint}>
+                  Browse without a location on this device
+                </Text>
+              </View>
+            </TouchableOpacity>
+          )}
+          {searching && (
+            <ActivityIndicator style={styles.loader} color={colors.primary} />
+          )}
+          {results.length > 0 && (
+            <Text style={styles.section}>SUGGESTED LOCALITIES & ADDRESSES</Text>
+          )}
+          {results.map(result => (
+            <TouchableOpacity
+              accessibilityRole="button"
+              disabled={busy}
+              key={`${result.latitude}:${result.longitude}:${result.label}`}
+              style={styles.result}
+              onPress={() => select(result)}
+            >
+              <Icon name="location-outline" size={22} color={colors.primary} />
+              <Text style={styles.resultText}>{result.label}</Text>
+              <Icon name="chevron-forward" size={18} color={colors.subText} />
+            </TouchableOpacity>
+          ))}
+          {searched && !searching && results.length === 0 && (
+            <Text style={styles.subtitle}>
+              No matching areas found. Try a nearby landmark or city.
+            </Text>
+          )}
+          {!query && !saved && (
+            <Text style={styles.subtitle}>
+              You can search manually without sharing your device location.
+            </Text>
+          )}
+          <TouchableOpacity
+            disabled={busy}
+            style={styles.settings}
+            onPress={finish}
+          >
+            <Text style={styles.hint}>
+              {saved ? 'Keep selected location' : 'Browse without location'}
+            </Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </KeyboardAvoidingView>
     </SafeAreaView>
   );
 }
-
 const createStyles = (colors: ThemeColors) =>
   StyleSheet.create({
+    mapAction: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      padding: 16,
+      minHeight: 80,
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+    },
+    clearLocation: {
+      flexDirection: 'row',
+      gap: 12,
+      alignItems: 'center',
+      minHeight: 64,
+    },
+    clearTitle: { color: colors.danger, fontSize: 14, fontWeight: '600' },
     container: { flex: 1, backgroundColor: colors.background },
-    content: {
-      flex: 1,
-      paddingHorizontal: 24,
-      paddingTop: 48,
+    content: { padding: 20, gap: 16, paddingBottom: 40 },
+    title: { fontSize: 28, fontWeight: '700', color: colors.text },
+    subtitle: { fontSize: 14, color: colors.subText, lineHeight: 21 },
+    searchBox: {
+      flexDirection: 'row',
       alignItems: 'center',
+      borderWidth: 1,
+      borderColor: colors.border,
+      borderRadius: 16,
+      paddingLeft: 14,
+      minHeight: 56,
+      gap: 10,
+      backgroundColor: colors.surfaceSubtle,
     },
-    iconCircle: {
-      width: 72,
-      height: 72,
-      borderRadius: 36,
-      backgroundColor: colors.primary,
+    input: { flex: 1, color: colors.text, fontSize: 14, minHeight: 56 },
+    clear: {
+      minWidth: 48,
+      minHeight: 48,
+      alignItems: 'center',
       justifyContent: 'center',
+    },
+    gps: {
+      flexDirection: 'row',
       alignItems: 'center',
-      marginBottom: 20,
+      gap: 12,
+      minHeight: 88,
+      padding: 16,
+      backgroundColor: colors.primaryLight,
+      borderRadius: 16,
     },
-    title: {
-      fontSize: 24,
-      fontWeight: '800',
-      color: colors.text,
-      textAlign: 'center',
+    copy: { flex: 1, gap: 6 },
+    gpsTitle: { fontSize: 15, fontWeight: '700', color: colors.primary },
+    hint: { fontSize: 12, color: colors.subText, lineHeight: 18 },
+    error: { color: colors.danger, fontSize: 13, lineHeight: 20 },
+    settings: { minHeight: 48, justifyContent: 'center' },
+    saved: {
+      gap: 8,
+      padding: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: colors.border,
     },
-    subtitle: {
-      marginTop: 12,
-      fontSize: 14,
-      lineHeight: 21,
+    savedTitle: { fontSize: 17, fontWeight: '700', color: colors.text },
+    section: {
+      fontSize: 11,
+      fontWeight: '700',
       color: colors.subText,
-      textAlign: 'center',
+      letterSpacing: 0.6,
     },
-    errorText: {
-      marginTop: 16,
-      fontSize: 12,
-      lineHeight: 18,
-      color: colors.danger,
-      textAlign: 'center',
-    },
-    primaryButton: {
-      width: '100%',
-      minHeight: 52,
-      marginTop: 28,
-      borderRadius: 14,
-      backgroundColor: colors.primary,
+    loader: { paddingVertical: 16 },
+    result: {
+      minHeight: 72,
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    primaryButtonText: {
-      fontSize: 15,
-      fontWeight: '700',
-      color: colors.onPrimary,
-    },
-    secondaryButton: {
-      width: '100%',
-      minHeight: 48,
-      marginTop: 12,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: colors.border,
-      justifyContent: 'center',
-      alignItems: 'center',
-    },
-    secondaryButtonText: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: colors.text,
-    },
-    searchSection: { width: '100%', marginTop: 16 },
-    searchInputRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      minHeight: 48,
-      paddingHorizontal: 14,
-      borderRadius: 12,
-      borderWidth: 1,
-      borderColor: colors.border,
-      backgroundColor: colors.surface,
-    },
-    searchIcon: { marginRight: 8 },
-    searchInput: { flex: 1, fontSize: 14, color: colors.text },
-    resultRow: {
-      flexDirection: 'row',
-      alignItems: 'flex-start',
-      gap: 8,
-      paddingVertical: 10,
-      paddingHorizontal: 4,
+      gap: 12,
       borderBottomWidth: 1,
-      borderBottomColor: colors.border,
+      borderColor: colors.border,
+      paddingVertical: 16,
     },
-    resultText: { flex: 1, fontSize: 13, lineHeight: 18, color: colors.text },
-    skipButton: { marginTop: 20, paddingVertical: 10 },
-    skipButtonText: { fontSize: 13, fontWeight: '600', color: colors.subText },
+    resultText: { flex: 1, fontSize: 14, color: colors.text, lineHeight: 21 },
   });
